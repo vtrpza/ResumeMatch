@@ -29,20 +29,21 @@ function ScanContent() {
   useEffect(() => {
     let cancelled = false;
 
+    const sessionId = getOrCreateSessionId();
     async function check() {
       if (searchParams.get("success") === "1") {
-        const u = await fetch("/api/usage").then((r) => r.json());
-        if (u?.hasSubscription) {
+        const u = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).then((r) => r.json());
+        if (u && typeof u.purchasedScans === "number" && u.purchasedScans > 0) {
           setPremium();
           capture("checkout_completed", { source: "redirect" });
           capture("premium_unlocked", { source: "checkout" });
         }
         router.replace("/scan", { scroll: false });
       }
-      const u = await fetch("/api/usage").then((r) => r.json()).catch(() => null);
+      const u = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).then((r) => r.json()).catch(() => null);
       if (!cancelled) {
-        if (u && typeof u.scanCount === "number" && typeof u.hasSubscription === "boolean") {
-          setShowPaywall(u.scanCount >= 1 && !u.hasSubscription);
+        if (u && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
+          setShowPaywall(u.scanCount >= 1 + u.purchasedScans);
         } else {
           setShowPaywall(shouldShowPaywall());
         }
@@ -92,18 +93,18 @@ function ScanContent() {
     }
   }
 
-  async function handleCheckout(plan: "sprint" | "pro") {
-    capture("checkout_started", { plan });
+  async function handlePay() {
+    capture("checkout_started");
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan, sessionId: getOrCreateSessionId() }),
+      body: JSON.stringify({ sessionId: getOrCreateSessionId() }),
     });
     const data = await res.json();
     if (data.url) {
       window.location.href = data.url;
     } else {
-      capture("checkout_failed", { plan, error: data.error ?? "Unknown error" });
+      capture("checkout_failed", { error: data.error ?? "Unknown error" });
       setError(data.error ?? "Checkout failed");
     }
   }
@@ -127,8 +128,7 @@ function ScanContent() {
         </Link>
         <Paywall
           onClose={() => router.push("/")}
-          onSelectSprint={() => handleCheckout("sprint")}
-          onSelectPro={() => handleCheckout("pro")}
+          onPay={handlePay}
           loading={loading}
         />
       </main>

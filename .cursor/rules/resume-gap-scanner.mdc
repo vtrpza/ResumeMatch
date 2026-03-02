@@ -47,7 +47,7 @@ Use:
 - Vercel
 - Neon Postgres
 - Vercel Blob
-- Stripe Checkout + Billing
+- Stripe Checkout
 - PostHog
 - Sentry
 - OpenTelemetry
@@ -82,10 +82,7 @@ Avoid claims like:
 - instant job offers
 
 ## Monetization
-Launch pricing:
-- Free: 1 full scan
-- Sprint: $12/week
-- Pro: $29/month
+$2 per scan. One free scan, then $2 per report. No subscriptions.
 
 ## Analytics events
 Track:

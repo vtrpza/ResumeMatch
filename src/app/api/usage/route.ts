@@ -1,13 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { setRoute } from "@/lib/sentry";
+import { getUsage } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   setRoute("api_usage");
   try {
+    const sessionId = request.nextUrl.searchParams.get("sessionId");
+    if (sessionId) {
+      const usage = await getUsage(sessionId);
+      if (usage) {
+        return NextResponse.json(usage);
+      }
+    }
     return NextResponse.json({
       scanCount: 0,
-      hasSubscription: false,
+      purchasedScans: 0,
     });
   } catch (err) {
     Sentry.captureException(err);

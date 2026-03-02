@@ -1,6 +1,6 @@
 # ship-resume-gap-scanner
 
-Build and ship the Resume Matcb MVP using the project rules.
+Build and ship the Resume Match MVP using the project rules.
 
 Workflow:
 1. Read the project rules first.

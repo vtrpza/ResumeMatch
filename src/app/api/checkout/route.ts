@@ -6,10 +6,17 @@ export async function POST(request: Request) {
   setRoute("api_checkout");
   try {
     const body = await request.json();
-    const { plan } = body as { plan: string; sessionId: string };
+    const { sessionId } = body as { sessionId: string };
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Missing sessionId" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       {
-        error: `Checkout for "${plan}" plan is not configured yet. Please set up a payment provider.`,
+        error:
+          "Checkout not configured. Set up Stripe and STRIPE_PRICE_SCAN for $2 per scan.",
       },
       { status: 501 }
     );

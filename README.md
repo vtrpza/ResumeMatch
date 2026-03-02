@@ -40,7 +40,7 @@ The analysis uses structured AI to extract requirements, compare against your re
 - **Styling**: Tailwind CSS v4
 - **Database**: Neon Postgres
 - **Storage**: Vercel Blob
-- **Payments**: Stripe Checkout + Billing
+- **Payments**: Stripe Checkout
 - **Analytics**: PostHog (optional)
 - **Monitoring**: Sentry, OpenTelemetry
 - **AI**: OpenAI GPT-5-mini (default), GPT-5 (premium/fallback)
@@ -88,8 +88,7 @@ For full MVP functionality, also configure:
 # Stripe (for payments)
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_SPRINT=price_xxx  # $12/week
-STRIPE_PRICE_PRO=price_xxx     # $29/month
+STRIPE_PRICE_SCAN=price_xxx   # one-time $2 per scan
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # Database (Neon Postgres)
@@ -130,7 +129,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 3. Configure environment variables in Vercel dashboard:
    - `OPENAI_API_KEY`
    - `DATABASE_URL` (if using Neon)
-   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SPRINT`, `STRIPE_PRICE_PRO`
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SCAN`
    - `NEXT_PUBLIC_APP_URL` (your Vercel deployment URL)
    - `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` (if using PostHog)
 4. Configure Stripe webhook:
@@ -158,11 +157,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Pricing
 
-**Launch Pricing** (subject to change):
-
-- **Free**: 1 full scan
-- **Sprint**: $12/week - Unlimited scans, premium features
-- **Pro**: $29/month - Unlimited scans, premium features, best value
+$2 per scan. One free scan, then $2 per report. One-time payment, no subscription.
 
 ## Privacy & Trust
 

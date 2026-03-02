@@ -271,50 +271,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Pricing Preview */}
+        {/* Pricing */}
         <section className="mx-auto mt-24 max-w-3xl sm:mt-32">
           <h2 className="text-center text-2xl font-semibold text-white sm:text-3xl">
             Pricing
           </h2>
-          <p className="mt-2 text-center text-sm text-zinc-500">
-            Launch pricing—billing not active yet.
-          </p>
-          <div className="mt-12 grid gap-6 sm:grid-cols-2">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <h3 className="text-lg font-medium text-white">Free</h3>
-              <p className="mt-2 text-3xl font-semibold text-white">$0</p>
-              <p className="mt-1 text-sm text-zinc-500">
-                One full scan to try everything.
-              </p>
-              <ul className="mt-4 space-y-2 text-sm text-zinc-400">
-                <li>• 1 full scan</li>
-                <li>• Complete analysis report</li>
-                <li>• All features included</li>
-              </ul>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <h3 className="text-lg font-medium text-white">Sprint</h3>
-              <p className="mt-2 text-3xl font-semibold text-white">
-                $12<span className="text-base font-normal text-zinc-400">/week</span>
-              </p>
-              <ul className="mt-4 space-y-2 text-sm text-zinc-400">
-                <li>• Unlimited scans</li>
-                <li>• Premium features</li>
-                <li>• Full rewrite & cover letter</li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-            <h3 className="text-lg font-medium text-white">Pro</h3>
-            <p className="mt-2 text-3xl font-semibold text-white">
-              $29<span className="text-base font-normal text-zinc-400">/month</span>
+          <div className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center sm:mt-12">
+            <p className="text-2xl font-semibold text-white sm:text-3xl">
+              $2 per scan
             </p>
-            <ul className="mt-4 space-y-2 text-sm text-zinc-400">
-              <li>• Unlimited scans</li>
-              <li>• Premium features</li>
-              <li>• Full rewrite & cover letter</li>
-              <li>• Best value for regular use</li>
-            </ul>
+            <p className="mt-2 text-zinc-400">
+              One free scan, then $2 for each report. One-time payment, no subscription.
+            </p>
           </div>
         </section>
 
@@ -376,7 +344,7 @@ export default function HomePage() {
             Ready to see your match?
           </h2>
           <p className="mt-4 text-lg text-zinc-400">
-            First scan free. No credit card required.
+            One free scan, then $2 per report. No subscription.
           </p>
           <CtaLink
             href="/scan"

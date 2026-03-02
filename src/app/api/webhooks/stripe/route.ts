@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
-import { setSubscriptionValidUntil } from "@/lib/db";
+import { incrementPurchasedScans } from "@/lib/db";
 import { setRoute } from "@/lib/sentry";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -36,9 +36,7 @@ export async function POST(request: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
       const sessionId = session.metadata?.session_id;
       if (sessionId) {
-        const validUntil = new Date();
-        validUntil.setDate(validUntil.getDate() + 30);
-        await setSubscriptionValidUntil(sessionId, validUntil);
+        await incrementPurchasedScans(sessionId);
       }
     }
     return NextResponse.json({ received: true });
