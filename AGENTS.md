@@ -1,4 +1,4 @@
-# Resume Gap Scanner
+# Resume Match
 
 Next.js 15 (App Router) application with TypeScript and Tailwind CSS v4.
 
@@ -23,3 +23,4 @@ Next.js 15 (App Router) application with TypeScript and Tailwind CSS v4.
 - The `/api/usage` and `/api/checkout` routes are stubs. Full implementation requires a database and payment provider (Stripe).
 - Client-side cookie/localStorage utilities in `src/lib/cookies.ts` provide a fallback paywall mechanism when the database is unavailable.
 - The app uses `@/*` path aliases mapped to `./src/*` via `tsconfig.json`.
+- Sentry is integrated for error monitoring. Set `NEXT_PUBLIC_SENTRY_DSN` (and optionally `SENTRY_ORG`, `SENTRY_PROJECT` for source maps) for production. Errors are captured with scan-stage and route context; no resume/JD content is sent.

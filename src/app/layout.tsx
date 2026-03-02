@@ -11,8 +11,8 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Resume Gap Scanner",
-  description: "See how your resume matches the job. Get missing keywords, ATS risks, and stronger bullets.",
+  title: "Resume Match",
+  description: "Match your resume to the job—before you apply. Get missing keywords, ATS risks, and stronger bullets.",
   icons: {
     icon: "/favicon.svg",
   },

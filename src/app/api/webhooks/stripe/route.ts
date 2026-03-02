@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import { setSubscriptionValidUntil } from "@/lib/db";
+import { setRoute } from "@/lib/sentry";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
+  setRoute("api_webhooks_stripe");
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
       { error: "Webhook not configured" },
@@ -23,20 +26,27 @@ export async function POST(request: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (e) {
+    Sentry.captureException(e);
     const message = e instanceof Error ? e.message : "Invalid signature";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const sessionId = session.metadata?.session_id;
-    if (sessionId) {
-      // Pro = 30 days, Sprint = 7 days; default 30
-      const validUntil = new Date();
-      validUntil.setDate(validUntil.getDate() + 30);
-      await setSubscriptionValidUntil(sessionId, validUntil);
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const sessionId = session.metadata?.session_id;
+      if (sessionId) {
+        const validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + 30);
+        await setSubscriptionValidUntil(sessionId, validUntil);
+      }
     }
+    return NextResponse.json({ received: true });
+  } catch (err) {
+    Sentry.captureException(err);
+    return NextResponse.json(
+      { error: "Webhook processing failed" },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ received: true });
 }

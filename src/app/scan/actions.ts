@@ -1,5 +1,9 @@
 "use server";
 
+import * as Sentry from "@sentry/nextjs";
+import { headers } from "next/headers";
+import { setScanStage, setScanContext, captureScanError } from "@/lib/sentry";
+
 interface ScanResult {
   ok: boolean;
   error: string | null;
@@ -15,16 +19,48 @@ interface ScanResult {
 }
 
 export async function runScan(formData: FormData): Promise<ScanResult> {
-  const resume = formData.get("resume") as File | null;
-  const jd = formData.get("jd") as string | null;
+  return Sentry.withServerActionInstrumentation(
+    "runScan",
+    {
+      headers: await headers(),
+      recordResponse: true,
+    },
+    async () => {
+      setScanStage("validation");
+      const resume = formData.get("resume") as File | null;
+      const jd = formData.get("jd") as string | null;
 
-  if (!resume || !jd) {
-    return { ok: false, error: "Resume and job description are required." };
-  }
+      if (!resume || !jd) {
+        return { ok: false, error: "Resume and job description are required." };
+      }
 
-  if (resume.size > 5 * 1024 * 1024) {
-    return { ok: false, error: "Resume must be under 5 MB." };
-  }
+      if (resume.size > 5 * 1024 * 1024) {
+        return { ok: false, error: "Resume must be under 5 MB." };
+      }
+
+      setScanContext({ resumeSizeBytes: resume.size, jdLength: jd.length });
+
+      try {
+        return await runScanPipeline(resume, jd);
+      } catch (err) {
+        captureScanError(err, { stage: "validation", code: "scan_pipeline_error" });
+        return {
+          ok: false,
+          error: "Something went wrong. Please try again.",
+        };
+      }
+    }
+  );
+}
+
+// Stub implementation; real pipeline will call PDF extract → LLM → validate
+/* eslint-disable @typescript-eslint/no-unused-vars -- params used when real pipeline is wired */
+async function runScanPipeline(
+  _resume: File,
+  _jd: string
+): Promise<ScanResult> {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+  setScanStage("validation");
 
   return {
     ok: true,
