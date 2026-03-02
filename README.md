@@ -119,6 +119,44 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
+- `npm run typecheck` - Run TypeScript type checking
+
+## CI/CD
+
+This repository uses GitHub Actions for continuous integration.
+
+### What CI Does
+
+On every pull request and push to `main`, the CI workflow automatically:
+
+1. **Installs dependencies** - Uses `npm ci` for fast, reliable installs
+2. **Runs linter** - Checks code quality with ESLint
+3. **Runs typecheck** - Validates TypeScript types
+4. **Builds the application** - Ensures the Next.js app builds successfully
+
+### CI Requirements
+
+The CI workflow runs without requiring any secrets or external services. The build step uses default/empty values for optional environment variables (Sentry, app URL) to ensure builds complete successfully.
+
+### GitHub Secrets (Optional)
+
+For enhanced CI functionality, you can optionally configure these secrets in GitHub Settings → Secrets and variables → Actions:
+
+- `NEXT_PUBLIC_APP_URL` - App URL for build-time configuration (defaults to `http://localhost:3000` if not set)
+- `SENTRY_ORG` - Sentry organization (optional, for source maps)
+- `SENTRY_PROJECT` - Sentry project (optional, for source maps)
+
+**Note**: These secrets are optional. CI will run successfully without them.
+
+### Local Validation
+
+Before pushing, you can run the same checks locally:
+
+```bash
+npm run lint      # Check code quality
+npm run typecheck # Check TypeScript types
+npm run build     # Verify production build
+```
 
 ## Deployment
 
