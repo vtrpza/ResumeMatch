@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { capture } from "@/lib/analytics";
 
 const SPRINT_PRICE = "$12/week";
 const PRO_PRICE = "$29/month";
@@ -18,6 +19,10 @@ export function Paywall({
 }) {
   const [busy, setBusy] = useState(false);
   const isBusy = loading || busy;
+
+  useEffect(() => {
+    capture("paywall_viewed");
+  }, []);
 
   async function handleSprint() {
     setBusy(true);

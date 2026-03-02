@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { capture } from "@/lib/analytics";
+import { capture, captureResultViewed } from "@/lib/analytics";
 
 export default function ResultPage() {
   const [analysis, setAnalysis] = useState<unknown>(null);
@@ -22,7 +22,12 @@ export default function ResultPage() {
   useEffect(() => {
     if (analysis !== null && !resultViewedSent.current) {
       resultViewedSent.current = true;
-      capture("result_viewed");
+      const data = analysis as Record<string, unknown>;
+      captureResultViewed({
+        matchScore: typeof data.matchScore === "number" ? data.matchScore : undefined,
+        missingKeywords: Array.isArray(data.missingKeywords) ? data.missingKeywords : undefined,
+        atsRisks: Array.isArray(data.atsRisks) ? data.atsRisks : undefined,
+      });
     }
   }, [analysis]);
 
@@ -87,6 +92,7 @@ function AnalysisView({ data }: { data: unknown }) {
     try {
       await navigator.clipboard.writeText(summary);
       setCopied(true);
+      capture("summary_copied", { summary_length: summary.length });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // no-op
