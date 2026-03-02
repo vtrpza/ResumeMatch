@@ -12,7 +12,7 @@ import {
   setPremium,
   getOrCreateSessionId,
 } from "@/lib/cookies";
-import { capture } from "@/lib/analytics";
+import { capture, captureFileUpload, captureTextInput, captureScanCompleted, captureScanFailed } from "@/lib/analytics";
 
 function ScanContent() {
   const router = useRouter();
@@ -32,7 +32,11 @@ function ScanContent() {
     async function check() {
       if (searchParams.get("success") === "1") {
         const u = await fetch("/api/usage").then((r) => r.json());
-        if (u?.hasSubscription) setPremium();
+        if (u?.hasSubscription) {
+          setPremium();
+          capture("checkout_completed", { source: "redirect" });
+          capture("premium_unlocked", { source: "checkout" });
+        }
         router.replace("/scan", { scroll: false });
       }
       const u = await fetch("/api/usage").then((r) => r.json()).catch(() => null);
@@ -51,21 +55,36 @@ function ScanContent() {
   async function handleSubmit(formData: FormData) {
     setError(null);
     setLoading(true);
-    capture("scan_started");
+    const resume = formData.get("resume") as File | null;
+    const jd = formData.get("jd") as string | null;
+    capture("scan_started", {
+      file_size: resume?.size,
+      file_size_bucket: resume ? (resume.size < 100 * 1024 ? "<100KB" : resume.size < 500 * 1024 ? "100-500KB" : resume.size < 1024 * 1024 ? "500KB-1MB" : resume.size < 2 * 1024 * 1024 ? "1-2MB" : resume.size < 5 * 1024 * 1024 ? "2-5MB" : "5MB+") : undefined,
+      jd_length: jd?.length,
+      jd_length_bucket: jd ? (jd.length < 100 ? "<100" : jd.length < 500 ? "100-500" : jd.length < 1000 ? "500-1K" : jd.length < 2000 ? "1K-2K" : jd.length < 5000 ? "2K-5K" : "5K+") : undefined,
+    });
     try {
       const result = await runScan(formData);
       if (!result.ok) {
         setError(result.error ?? "Something went wrong");
-        capture("scan_failed", { error: result.error });
+        captureScanFailed(result.error);
         return;
       }
-      capture("scan_completed");
+      if (result.analysis) {
+        captureScanCompleted({
+          matchScore: result.analysis.matchScore,
+          // Note: confidence and extractionQuality would come from actual analysis
+          // For now, we'll add them when the real implementation is in place
+        });
+      } else {
+        capture("scan_completed");
+      }
       setFreeScanUsed(); // fallback when DB unavailable
       sessionStorage.setItem("scan_analysis", JSON.stringify(result.analysis));
       router.push("/result");
     } catch (err) {
-      capture("scan_failed", {
-        error: err instanceof Error ? err.message : "Unknown error",
+      captureScanFailed(err instanceof Error ? err.message : "Unknown error", {
+        error_type: "exception",
       });
       setError("Something went wrong. Please try again.");
     } finally {
@@ -74,14 +93,19 @@ function ScanContent() {
   }
 
   async function handleCheckout(plan: "sprint" | "pro") {
+    capture("checkout_started", { plan });
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ plan, sessionId: getOrCreateSessionId() }),
     });
     const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else setError(data.error ?? "Checkout failed");
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      capture("checkout_failed", { plan, error: data.error ?? "Unknown error" });
+      setError(data.error ?? "Checkout failed");
+    }
   }
 
   if (showPaywall === null) {
@@ -152,6 +176,7 @@ function ScanContent() {
             onChange={(e) => {
               const file = e.target.files?.[0];
               setSelectedFileName(file ? file.name : null);
+              captureFileUpload(file || null);
             }}
           />
           {selectedFileName && (
@@ -177,6 +202,21 @@ function ScanContent() {
             required
             placeholder="Example:&#10;&#10;Senior Software Engineer&#10;Company: TechCorp Inc.&#10;&#10;Requirements:&#10;• 5+ years experience with React and Node.js&#10;• Experience with cloud platforms (AWS, GCP)&#10;• Strong problem-solving skills&#10;&#10;[Paste full job description here...]"
             className="mt-2 min-h-[140px] w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-white placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 sm:min-h-[180px]"
+            onFocus={() => {
+              // Track when user starts entering JD (first focus)
+              const textarea = document.getElementById("jd") as HTMLTextAreaElement;
+              if (textarea && textarea.value.length === 0) {
+                captureTextInput("", "jd");
+              }
+            }}
+            onChange={(e) => {
+              // Track when user pastes/enters substantial content
+              const text = e.target.value;
+              if (text.length > 50 && text.length < 200) {
+                // Only capture once when they start entering content
+                captureTextInput(text, "jd");
+              }
+            }}
           />
         </div>
         {error && (
