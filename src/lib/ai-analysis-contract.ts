@@ -146,6 +146,8 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         "matchScoreReasoning",
         "missingKeywords",
         "missingSkills",
+        "criticalMissingKeywords",
+        "criticalMissingSkills",
         "atsRisks",
         "weakBullets",
         "rewrittenBullets",
@@ -153,7 +155,6 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         "confidence",
         "extractionQuality",
       ],
-      // Note: criticalMissingKeywords and criticalMissingSkills are optional
       additionalProperties: false,
     },
   },
