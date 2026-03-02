@@ -2,10 +2,15 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { setRoute } from "@/lib/sentry";
 import { capture } from "@/lib/analytics";
 
 export default function ResultPage() {
   const [analysis, setAnalysis] = useState<unknown>(null);
+
+  useEffect(() => {
+    setRoute("result");
+  }, []);
 
   useEffect(() => {
     const analysisJson = sessionStorage.getItem("scan_analysis");

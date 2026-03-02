@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { setRoute } from "@/lib/sentry";
 import { runScan } from "./actions";
 import { Paywall } from "@/components/Paywall";
 import {
@@ -20,6 +21,10 @@ function ScanContent() {
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState<boolean | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRoute("scan");
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

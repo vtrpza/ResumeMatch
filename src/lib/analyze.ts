@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { setScanStage, setScanContext, captureScanError } from "./sentry";
 
 /**
  * Structured analysis result from GPT-5-mini (using gpt-4o-mini).
@@ -81,39 +82,61 @@ Rules:
 - rewrittenBullets: one improved bullet per weak bullet, same order; use strong verbs and outcomes.
 - tailoredSummary: 2-3 sentences positioning the candidate for this role using only resume facts.`;
 
+const DEFAULT_MODEL = "gpt-4o-mini";
+
 export async function analyzeResume(
   resumeText: string,
   jobDescription: string
 ): Promise<ScanAnalysis> {
+  setScanStage("llm_analysis");
+  const model = DEFAULT_MODEL;
+  setScanContext({ model });
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not set");
+    const err = new Error("OPENAI_API_KEY is not set");
+    captureScanError(err, { stage: "llm_analysis", code: "config_missing" });
+    throw err;
   }
 
-  const openai = new OpenAI({ apiKey });
-  const truncatedResume = resumeText.slice(0, 12000);
-  const truncatedJd = jobDescription.slice(0, 8000);
+  try {
+    const openai = new OpenAI({ apiKey });
+    const truncatedResume = resumeText.slice(0, 12000);
+    const truncatedJd = jobDescription.slice(0, 8000);
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: `Resume:\n${truncatedResume}\n\nJob description:\n${truncatedJd}`,
-      },
-    ],
-    response_format: ANALYSIS_SCHEMA,
-  });
+    const response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `Resume:\n${truncatedResume}\n\nJob description:\n${truncatedJd}`,
+        },
+      ],
+      response_format: ANALYSIS_SCHEMA,
+    });
 
-  const raw = response.choices[0]?.message?.content;
-  if (!raw) {
-    throw new Error("Empty analysis response");
+    const raw = response.choices[0]?.message?.content;
+    if (!raw) {
+      const err = new Error("Empty analysis response");
+      captureScanError(err, { stage: "llm_analysis", code: "empty_response" });
+      throw err;
+    }
+
+    const parsed = JSON.parse(raw) as ScanAnalysis;
+    if (typeof parsed.matchScore !== "number") {
+      parsed.matchScore = Math.min(100, Math.max(0, Number(parsed.matchScore) || 0));
+    }
+    setScanContext({ model, analysisValid: true });
+    return parsed;
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "status" in err
+        ? "openai_api_error"
+        : err instanceof SyntaxError
+          ? "malformed_analysis_output"
+          : "llm_analysis_failed";
+    captureScanError(err, { stage: "llm_analysis", code });
+    throw err;
   }
-
-  const parsed = JSON.parse(raw) as ScanAnalysis;
-  if (typeof parsed.matchScore !== "number") {
-    parsed.matchScore = Math.min(100, Math.max(0, Number(parsed.matchScore) || 0));
-  }
-  return parsed;
 }
