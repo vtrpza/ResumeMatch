@@ -7,7 +7,7 @@ import { extractTextFromPdf } from "@/lib/pdf";
 import { analyzeResume, type AnalysisResult } from "@/lib/analyze";
 import { detectEdgeCases, adjustConfidenceForEdgeCases } from "@/lib/ai-analysis-validation";
 import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
-import { getOrCreateAndIncrementScan } from "@/lib/db";
+import { getUsage, getOrCreateAndIncrementScan } from "@/lib/db";
 import { isFullAppEnabled, isDatabaseAvailable } from "@/lib/feature-config";
 
 interface ScanResult {
@@ -79,12 +79,34 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
       setScanContext({ resumeSizeBytes: resume.size, jdLength: jd.length });
 
       const sessionId = (formData.get("sessionId") as string | null)?.trim() || null;
+      const fullApp = isFullAppEnabled();
+      const dbAvailable = isDatabaseAvailable();
 
-      if (isFullAppEnabled() && !isDatabaseAvailable()) {
+      if (fullApp && !dbAvailable) {
         return {
           ok: false,
           error: "Service temporarily unavailable. Database is not configured.",
         };
+      }
+
+      // Enforce paywall server-side when full app + DB: require session and check usage.
+      if (fullApp && dbAvailable) {
+        if (!sessionId) {
+          return {
+            ok: false,
+            error: "Session required. Refresh the page and try again.",
+          };
+        }
+        const usage = await getUsage(sessionId);
+        if (usage) {
+          const allowed = 1 + usage.purchasedScans;
+          if (usage.scanCount >= allowed) {
+            return {
+              ok: false,
+              error: "You've used your free scan. Unlock another scan for $2 to continue.",
+            };
+          }
+        }
       }
 
       try {
@@ -104,9 +126,23 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
   );
 }
 
+/** PDF magic bytes: %PDF- (RFC 3778). Reject non-PDF before parsing. */
+const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d]); // "%PDF-"
+
+function isPdfBuffer(buffer: Buffer): boolean {
+  if (buffer.length < 5) return false;
+  return PDF_MAGIC.compare(buffer, 0, 5, 0, 5) === 0;
+}
+
 async function runScanPipeline(resume: File, jd: string): Promise<ScanResult> {
   setScanStage("pdf_extract");
   const buffer = Buffer.from(await resume.arrayBuffer());
+  if (!isPdfBuffer(buffer)) {
+    return {
+      ok: false,
+      error: "Upload a valid PDF file. This file doesn't appear to be a PDF.",
+    };
+  }
   const resumeText = await extractTextFromPdf(buffer);
 
   const edgeCases = detectEdgeCases(resumeText);
