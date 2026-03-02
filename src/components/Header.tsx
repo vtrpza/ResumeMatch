@@ -9,7 +9,7 @@ export function Header() {
           href="/"
           className="min-h-[44px] flex items-center py-2 text-base font-medium text-white transition hover:text-zinc-200"
         >
-          Resume Gap Scanner
+          Resume Match
         </Link>
         <div className="flex items-center gap-4">
           <span className="hidden text-sm text-zinc-500 sm:inline">

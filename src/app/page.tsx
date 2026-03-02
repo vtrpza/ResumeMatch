@@ -9,7 +9,7 @@ export default function HomePage() {
         {/* Hero Section */}
         <section className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-medium text-zinc-500 sm:text-base">
-            Resume Gap Scanner
+            Resume Match
           </p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white sm:text-5xl sm:leading-tight">
             Match your resume to the job—before you apply

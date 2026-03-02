@@ -1,4 +1,4 @@
--- Neon Postgres schema for Resume Gap Scanner MVP
+-- Neon Postgres schema for Resume Match MVP
 -- Run this in the Neon SQL editor after creating a project.
 
 create table if not exists sessions (

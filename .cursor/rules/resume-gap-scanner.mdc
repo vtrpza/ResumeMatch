@@ -2,10 +2,10 @@
 alwaysApply: true
 ---
 
-# Resume Gap Scanner — project rule
+# Resume Match — project rule
 
 ## Product
-Build a U.S.-focused SaaS called Resume Gap Scanner.
+Build a U.S.-focused SaaS called Resume Match.
 
 This is a narrow wedge product:
 - user uploads a resume PDF

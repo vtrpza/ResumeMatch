@@ -1,4 +1,4 @@
-# Resume Gap Scanner
+# Resume Match
 
 Next.js 15 (App Router) application with TypeScript and Tailwind CSS v4.
 

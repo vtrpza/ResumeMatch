@@ -1,5 +1,5 @@
 /**
- * AI Analysis Contract for Resume Gap Scanner
+ * AI Analysis Contract for Resume Match
  *
  * Defines the strict contract between the application and AI models
  * for resume analysis. Includes schema, prompts, fallback strategies,
