@@ -186,10 +186,10 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         },
         scoreMeaning: {
           type: "string",
-          minLength: 20,
+          minLength: 0,
           maxLength: 80,
           description:
-            "OPTIONAL: One line explaining what the score means for this role (e.g. 'Strong alignment on core stack; minor gaps in tooling.'). If omitted, UI uses matchScoreReasoning.",
+            "One line explaining what the score means for this role (e.g. 'Strong alignment on core stack; minor gaps in tooling.'). Use empty string to fall back to matchScoreReasoning in UI.",
         },
         missingSignalInsights: {
           type: "array",
@@ -253,6 +253,9 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         "tailoredSummary",
         "confidence",
         "extractionQuality",
+        "scoreMeaning",
+        "missingSignalInsights",
+        "rewriteReasons",
       ],
       additionalProperties: false,
     },
