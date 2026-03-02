@@ -6,7 +6,6 @@ import { capture } from "@/lib/analytics";
 
 export default function ResultPage() {
   const [analysis, setAnalysis] = useState<unknown>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const analysisJson = sessionStorage.getItem("scan_analysis");
@@ -17,7 +16,6 @@ export default function ResultPage() {
         setAnalysis(null);
       }
     }
-    setLoading(false);
   }, []);
 
   const resultViewedSent = useRef(false);
@@ -28,34 +26,19 @@ export default function ResultPage() {
     }
   }, [analysis]);
 
-  if (loading) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-600 border-t-white"></div>
-          <p className="mt-4 text-sm text-zinc-400">Loading your results...</p>
-        </div>
-      </main>
-    );
-  }
-
   if (analysis === null) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-          <p className="text-base text-zinc-300">
-            Your report isn&apos;t here—it may have been cleared.
-          </p>
-          <p className="mt-2 text-sm text-zinc-500">
-            Run a new scan to get your analysis.
-          </p>
-          <Link
-            href="/scan"
-            className="mt-6 inline-block rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
-          >
-            Run a new scan
-          </Link>
-        </div>
+        <p className="text-zinc-400">
+          Your report isn&apos;t here—it may have been cleared. Run a new scan
+          to get your analysis.
+        </p>
+        <Link
+          href="/scan"
+          className="mt-6 inline-block rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+        >
+          Run a new scan
+        </Link>
       </main>
     );
   }
@@ -64,26 +47,27 @@ export default function ResultPage() {
     <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
       <Link
         href="/"
-        className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 transition hover:text-zinc-300"
+        className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
       >
         ← Home
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
-        Your scan results
-      </h1>
+      <h1 className="mt-4 text-2xl font-semibold text-white">Your scan results</h1>
       <p className="mt-2 text-sm text-zinc-400">
-        Review the analysis below and take action on the recommendations.
+        Review your match score, gaps, and improvement suggestions below.
       </p>
 
       <AnalysisView data={analysis} />
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-8 space-y-3">
         <Link
           href="/scan"
-          className="text-sm text-zinc-500 transition hover:text-zinc-300"
+          className="inline-block min-h-[44px] rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
         >
-          Scan another resume →
+          Scan another resume
         </Link>
+        <p className="text-xs text-zinc-500">
+          Tip: Copy the tailored summary and use it in your application or cover letter.
+        </p>
       </div>
     </main>
   );
@@ -94,8 +78,7 @@ const cardClass =
 
 function AnalysisView({ data }: { data: unknown }) {
   const d = data as Record<string, unknown>;
-  const [copiedSummary, setCopiedSummary] = useState(false);
-  const [copiedBullets, setCopiedBullets] = useState<Record<number, boolean>>({});
+  const [copied, setCopied] = useState(false);
   const summary =
     typeof d.tailoredSummary === "string" ? d.tailoredSummary : "";
 
@@ -103,28 +86,12 @@ function AnalysisView({ data }: { data: unknown }) {
     if (!summary) return;
     try {
       await navigator.clipboard.writeText(summary);
-      setCopiedSummary(true);
-      setTimeout(() => setCopiedSummary(false), 2000);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       // no-op
     }
   }, [summary]);
-
-  const handleCopyBullet = useCallback(async (text: string, index: number) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedBullets((prev) => ({ ...prev, [index]: true }));
-      setTimeout(() => {
-        setCopiedBullets((prev) => {
-          const next = { ...prev };
-          delete next[index];
-          return next;
-        });
-      }, 2000);
-    } catch {
-      // no-op
-    }
-  }, []);
 
   const weakBullets = Array.isArray(d.weakBullets) ? d.weakBullets as string[] : [];
   const rewrittenBullets = Array.isArray(d.rewrittenBullets)
@@ -139,279 +106,153 @@ function AnalysisView({ data }: { data: unknown }) {
     d.extractionQuality === "low" ||
     (typeof d.confidence === "number" && d.confidence < 0.7);
 
-  const matchScore = typeof d.matchScore === "number" ? d.matchScore : null;
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-emerald-400";
-    if (score >= 60) return "text-amber-400";
-    return "text-red-400";
-  };
-  const getScoreBg = (score: number) => {
-    if (score >= 80) return "bg-emerald-950/20 border-emerald-800/30";
-    if (score >= 60) return "bg-amber-950/20 border-amber-800/30";
-    return "bg-red-950/20 border-red-800/30";
-  };
-  const getScoreLabel = (score: number) => {
-    if (score >= 80) return "Strong match";
-    if (score >= 60) return "Moderate match";
-    return "Needs improvement";
-  };
-
-  const missingKeywords = Array.isArray(d.missingKeywords) ? d.missingKeywords as string[] : [];
-  const missingSkills = Array.isArray(d.missingSkills) ? d.missingSkills as string[] : [];
-  const atsRisks = Array.isArray(d.atsRisks) ? d.atsRisks as string[] : [];
-
   return (
-    <div className="mt-6 space-y-6">
+    <div className="mt-6 space-y-5">
       {showLowQualityNotice && (
-        <div className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3">
-          <p className="text-sm font-medium text-amber-200">
-            ⚠️ PDF quality notice
-          </p>
-          <p className="mt-1 text-xs text-amber-200/80">
-            We had trouble reading some parts of your PDF. Results may be less accurate.
-          </p>
-        </div>
+        <p className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+          We had trouble reading some parts of your PDF; results may be less
+          accurate.
+        </p>
       )}
-
-      {matchScore !== null && (
+      {typeof d.matchScore === "number" && (
         <section className={cardClass}>
-          <div className={`flex flex-col items-center rounded-lg border ${getScoreBg(matchScore)} py-8 px-4`}>
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-              Match score
+          <h2 className="text-sm font-medium text-zinc-500 mb-4">Match score</h2>
+          <div className="flex flex-col items-center rounded-lg ring-1 ring-zinc-700/50 bg-zinc-900/80 py-6 px-4">
+            <p className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+              {d.matchScore}%
             </p>
-            <p className={`mt-2 text-5xl font-bold tracking-tight sm:text-6xl ${getScoreColor(matchScore)}`}>
-              {matchScore}%
-            </p>
-            <p className="mt-3 text-sm font-medium text-zinc-300">
-              {getScoreLabel(matchScore)}
-            </p>
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-sm text-zinc-400">
               Overall alignment with job requirements
             </p>
+            <p className="mt-3 text-xs text-zinc-500 text-center max-w-sm">
+              {d.matchScore >= 80
+                ? "Strong match. Your resume aligns well with this role."
+                : d.matchScore >= 60
+                ? "Good match. Consider adding missing keywords to improve your score."
+                : "Room for improvement. Review missing keywords and skills below."}
+            </p>
           </div>
         </section>
       )}
 
-      {missingKeywords.length > 0 && (
+      {Array.isArray(d.missingKeywords) && d.missingKeywords.length > 0 && (
         <section className={cardClass}>
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">
-                Missing keywords
-              </h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                Add these terms to improve ATS matching
-              </p>
-            </div>
-            <span className="ml-4 rounded-full bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300">
-              {missingKeywords.length}
-            </span>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {missingKeywords.map((k, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-sm text-zinc-300"
-              >
-                {k}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {missingSkills.length > 0 && (
-        <section className={cardClass}>
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">
-                Missing skills
-              </h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                Consider highlighting related experience or learning these
-              </p>
-            </div>
-            <span className="ml-4 rounded-full bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300">
-              {missingSkills.length}
-            </span>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {missingSkills.map((s, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-sm text-zinc-300"
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {atsRisks.length > 0 && (
-        <section className={cardClass}>
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">
-                ATS risk flags
-              </h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                Fix these to improve parsing accuracy
-              </p>
-            </div>
-            <span className="ml-4 rounded-full bg-red-950/30 px-2.5 py-1 text-xs font-medium text-red-300">
-              {atsRisks.length}
-            </span>
-          </div>
-          <ul className="mt-4 space-y-3">
-            {atsRisks.map((r, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0 text-red-400">⚠️</span>
-                <p className="flex-1 text-sm text-zinc-300">{r}</p>
-              </li>
+          <h2 className="text-sm font-medium text-zinc-500">
+            Missing keywords
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            These terms appear in the job description but not in your resume. Adding them can improve ATS compatibility.
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
+            {(d.missingKeywords as string[]).map((k, i) => (
+              <li key={i}>{k}</li>
             ))}
           </ul>
         </section>
       )}
 
-      {canPair && (
+      {Array.isArray(d.missingSkills) && d.missingSkills.length > 0 && (
         <section className={cardClass}>
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">
-                Bullet improvements
-              </h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                Before and after suggestions with quantified impact
-              </p>
-            </div>
-            <span className="ml-4 rounded-full bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300">
-              {weakBullets.length}
-            </span>
-          </div>
-          <div className="mt-5 space-y-6">
+          <h2 className="text-sm font-medium text-zinc-500">
+            Missing skills
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Skills mentioned in the job description that aren&apos;t clearly present in your resume. Only add skills you actually have.
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
+            {(d.missingSkills as string[]).map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {Array.isArray(d.atsRisks) && d.atsRisks.length > 0 && (
+        <section className={cardClass}>
+          <h2 className="text-sm font-medium text-zinc-500">
+            ATS risk flags
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Formatting or content issues that could cause problems with applicant tracking systems.
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
+            {(d.atsRisks as string[]).map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {canPair ? (
+        <section className={cardClass}>
+          <h2 className="text-sm font-medium text-zinc-500">
+            Bullet improvements
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            We&apos;ve rewritten weak bullets to be more impactful and quantifiable, using only what&apos;s in your resume.
+          </p>
+          <ul className="mt-4 space-y-5">
             {weakBullets.map((weak, i) => (
-              <div key={i} className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Original
-                  </p>
-                  <p className="mt-2 text-sm text-zinc-400 line-through">
-                    {weak}
-                  </p>
-                </div>
-                <div>
-                  <div className="flex items-start justify-between">
-                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      Suggested
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyBullet(rewrittenBullets[i], i)}
-                      className="ml-2 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
-                    >
-                      {copiedBullets[i] ? "Copied" : "Copy"}
-                    </button>
-                  </div>
-                  <p className="mt-2 text-sm text-zinc-200">
-                    {rewrittenBullets[i]}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!canPair && weakBullets.length > 0 && (
-        <section className={cardClass}>
-          <h2 className="text-base font-semibold text-white">
-            Weak bullets
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            These bullets lack quantified impact or specific achievements
-          </p>
-          <ul className="mt-4 space-y-2">
-            {weakBullets.map((b, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
-                <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-zinc-600"></span>
-                <span>{b}</span>
+              <li key={i} className="space-y-2 border-t border-zinc-800 pt-4 first:border-t-0 first:pt-0">
+                <p className="text-xs font-medium text-zinc-500">Original</p>
+                <p className="text-zinc-400 line-through">{weak}</p>
+                <p className="text-xs font-medium text-zinc-500 mt-3">Suggested</p>
+                <p className="text-zinc-300">{rewrittenBullets[i]}</p>
               </li>
             ))}
           </ul>
         </section>
-      )}
-
-      {!canPair && rewrittenBullets.length > 0 && (
-        <section className={cardClass}>
-          <h2 className="text-base font-semibold text-white">
-            Rewritten bullets
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            Improved versions with quantified impact
-          </p>
-          <ul className="mt-4 space-y-3">
-            {rewrittenBullets.map((b, i) => (
-              <li key={i} className="flex items-start justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-3">
-                <p className="flex-1 text-sm text-zinc-200">{b}</p>
-                <button
-                  type="button"
-                  onClick={() => handleCopyBullet(b, i)}
-                  className="flex-shrink-0 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
-                >
-                  {copiedBullets[i] ? "Copied" : "Copy"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+      ) : (
+        <>
+          {weakBullets.length > 0 && (
+            <section className={cardClass}>
+              <h2 className="text-sm font-medium text-zinc-500">
+                Weak bullets
+              </h2>
+              <ul className="mt-2 space-y-1 text-zinc-300">
+                {weakBullets.map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {rewrittenBullets.length > 0 && (
+            <section className={cardClass}>
+              <h2 className="text-sm font-medium text-zinc-500">
+                Rewritten bullets
+              </h2>
+              <ul className="mt-2 space-y-2 text-zinc-300">
+                {rewrittenBullets.map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
 
       {summary && (
         <section className={cardClass}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex-1">
-              <h2 className="text-base font-semibold text-white">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-medium text-zinc-500">
                 Tailored summary
               </h2>
               <p className="mt-1 text-xs text-zinc-500">
-                ATS-optimized summary tailored to this job
+                A job-specific summary highlighting your most relevant experience for this role.
               </p>
             </div>
             <button
               type="button"
               onClick={handleCopySummary}
-              className="flex-shrink-0 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-medium text-white transition hover:bg-zinc-700"
+              className="min-h-[36px] rounded-md border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-700"
             >
-              {copiedSummary ? "✓ Copied" : "Copy"}
+              {copied ? "✓ Copied" : "Copy summary"}
             </button>
           </div>
-          <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-            <p className="text-sm leading-relaxed text-zinc-200">{summary}</p>
-          </div>
+          <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
         </section>
       )}
-
-      <section className="rounded-xl border border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-900/50 p-6">
-        <h2 className="text-base font-semibold text-white">
-          Want more?
-        </h2>
-        <p className="mt-2 text-sm text-zinc-400">
-          Get a full resume rewrite, cover letter generation, and unlimited scans.
-        </p>
-        <div className="mt-4">
-          <button
-            type="button"
-            className="rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
-            onClick={() => {
-              capture("paywall_viewed", { source: "result_page" });
-              // Premium path will be implemented later
-            }}
-          >
-            View premium options
-          </button>
-        </div>
-      </section>
     </div>
   );
 }

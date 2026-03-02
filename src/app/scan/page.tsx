@@ -118,7 +118,7 @@ function ScanContent() {
         Scan your resume
       </h1>
       <p className="mt-2 text-zinc-400">
-        Upload your resume (PDF) and paste the job description below.
+        Upload your resume (PDF) and paste the job description below. Your data is processed securely and not stored.
       </p>
 
       <form action={handleSubmit} className="mt-6 space-y-4 sm:mt-8 sm:space-y-6">
@@ -134,22 +134,24 @@ function ScanContent() {
           >
             Resume (PDF)
           </label>
-          <p className="mt-1 text-xs text-zinc-500">Max 5 MB</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Max 5 MB. Works best with standard single-column layouts. We don&apos;t store your file.
+          </p>
           <input
             id="resume"
             name="resume"
             type="file"
             accept="application/pdf"
             required
-            className="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:min-h-[44px] file:rounded file:border-0 file:bg-zinc-700 file:px-4 file:py-2.5 file:text-white"
+            className="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:min-h-[44px] file:rounded file:border-0 file:bg-zinc-700 file:px-4 file:py-2.5 file:text-white file:transition file:hover:bg-zinc-600"
             onChange={(e) => {
               const file = e.target.files?.[0];
               setSelectedFileName(file ? file.name : null);
             }}
           />
           {selectedFileName && (
-            <p className="mt-2 text-sm text-zinc-500">
-              Selected: {selectedFileName}
+            <p className="mt-2 text-sm text-zinc-400">
+              ✓ {selectedFileName}
             </p>
           )}
         </div>
@@ -160,12 +162,15 @@ function ScanContent() {
           >
             Job description
           </label>
+          <p className="mt-1 text-xs text-zinc-500">
+            Paste the complete job posting, including requirements, responsibilities, and qualifications.
+          </p>
           <textarea
             id="jd"
             name="jd"
             rows={10}
             required
-            placeholder="Paste the full job description here..."
+            placeholder="Example:&#10;&#10;Senior Software Engineer&#10;Company: TechCorp Inc.&#10;&#10;Requirements:&#10;• 5+ years experience with React and Node.js&#10;• Experience with cloud platforms (AWS, GCP)&#10;• Strong problem-solving skills&#10;&#10;[Paste full job description here...]"
             className="mt-2 min-h-[140px] w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-white placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 sm:min-h-[180px]"
           />
         </div>
@@ -189,6 +194,11 @@ function ScanContent() {
               "Run scan"
             )}
           </button>
+          {loading && (
+            <p className="mt-2 text-xs text-zinc-500 sm:mt-3">
+              Extracting content, comparing against job requirements, and generating your report. This usually takes 10–20 seconds.
+            </p>
+          )}
         </div>
       </form>
     </main>

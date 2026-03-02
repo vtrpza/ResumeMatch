@@ -17,7 +17,7 @@ export default function HomePage() {
           <p className="mt-4 text-lg text-zinc-400 sm:mt-6 sm:text-xl">
             Upload your PDF, paste the job description. Get a match score,
             missing keywords, ATS risks, and stronger bullets in seconds. No
-            fluff, no fabrication.
+            fluff, no fabrication. Your data stays private.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:justify-center">
             <CtaLink
@@ -164,12 +164,18 @@ export default function HomePage() {
                 <p className="mt-1 text-sm text-zinc-400">
                   Overall alignment with job requirements
                 </p>
+                <p className="mt-2 text-xs text-zinc-500">
+                  Good match. Adding missing keywords could improve your score.
+                </p>
               </div>
               <div className="border-t border-zinc-800 pt-6">
                 <h3 className="text-sm font-medium text-zinc-500">
                   Missing keywords
                 </h3>
-                <ul className="mt-2 space-y-1 text-sm text-zinc-300">
+                <p className="mt-1 text-xs text-zinc-500">
+                  Terms in the job description not found in your resume
+                </p>
+                <ul className="mt-3 space-y-1 text-sm text-zinc-300">
                   <li>• CI/CD</li>
                   <li>• Kubernetes</li>
                   <li>• GraphQL</li>
@@ -179,7 +185,10 @@ export default function HomePage() {
                 <h3 className="text-sm font-medium text-zinc-500">
                   Missing skills
                 </h3>
-                <ul className="mt-2 space-y-1 text-sm text-zinc-300">
+                <p className="mt-1 text-xs text-zinc-500">
+                  Skills mentioned in the job that aren&apos;t clearly present
+                </p>
+                <ul className="mt-3 space-y-1 text-sm text-zinc-300">
                   <li>• Cloud architecture</li>
                   <li>• Performance optimization</li>
                 </ul>
@@ -188,7 +197,10 @@ export default function HomePage() {
                 <h3 className="text-sm font-medium text-zinc-500">
                   ATS risk flags
                 </h3>
-                <ul className="mt-2 space-y-1 text-sm text-zinc-300">
+                <p className="mt-1 text-xs text-zinc-500">
+                  Formatting or content issues that could affect ATS compatibility
+                </p>
+                <ul className="mt-3 space-y-1 text-sm text-zinc-300">
                   <li>• Resume uses two-column layout which may confuse ATS parsers</li>
                   <li>• No quantified achievements in first 3 bullets</li>
                 </ul>
@@ -197,11 +209,16 @@ export default function HomePage() {
                 <h3 className="text-sm font-medium text-zinc-500">
                   Weak bullets → Rewritten
                 </h3>
-                <div className="mt-2 space-y-3 text-sm">
+                <p className="mt-1 text-xs text-zinc-500">
+                  Stronger, more impactful versions based on your actual experience
+                </p>
+                <div className="mt-3 space-y-3 text-sm">
                   <div>
-                    <p className="text-zinc-400 line-through">
+                    <p className="text-xs font-medium text-zinc-500">Original</p>
+                    <p className="mt-1 text-zinc-400 line-through">
                       Responsible for managing team projects
                     </p>
+                    <p className="text-xs font-medium text-zinc-500 mt-3">Suggested</p>
                     <p className="mt-1 text-zinc-300">
                       Led cross-functional team of 8 to deliver 3 major product
                       launches on schedule, reducing time-to-market by 20%
@@ -210,10 +227,18 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="border-t border-zinc-800 pt-6">
-                <h3 className="text-sm font-medium text-zinc-500">
-                  Tailored summary
-                </h3>
-                <p className="mt-2 text-sm text-zinc-300">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-zinc-500">
+                      Tailored summary
+                    </h3>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Job-specific summary highlighting your most relevant experience
+                    </p>
+                  </div>
+                  <span className="text-xs text-zinc-600 border border-zinc-700 rounded px-2 py-1">Copy</span>
+                </div>
+                <p className="mt-3 text-sm text-zinc-300 leading-relaxed">
                   Full-stack engineer with 5+ years building scalable web
                   applications. Proven track record in React, Node.js, and
                   cloud-native architectures with a focus on performance and
@@ -235,10 +260,14 @@ export default function HomePage() {
               skills. Every suggestion is grounded in your real background and
               how it maps to the job.
             </p>
-            <p className="text-zinc-400">
-              Your documents are processed securely. We don&apos;t store them
-              after analysis or share your data with third parties.
-            </p>
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 text-left">
+              <p className="text-sm font-medium text-white mb-2">Your privacy matters</p>
+              <p className="text-sm text-zinc-400">
+                Your resume and job description are processed securely and deleted immediately after analysis. 
+                We don&apos;t store your documents, share your data with third parties, or use it to train AI models. 
+                Your information stays private.
+              </p>
+            </div>
           </div>
         </section>
 
