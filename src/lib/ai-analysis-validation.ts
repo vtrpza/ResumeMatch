@@ -7,7 +7,6 @@ import type { ScanAnalysis } from "./ai-analysis-contract";
 import {
   normalizeConfidence,
   normalizeMatchScore,
-  EDGE_CASES,
 } from "./ai-analysis-contract";
 
 /**
