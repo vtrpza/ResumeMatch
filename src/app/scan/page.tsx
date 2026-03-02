@@ -316,7 +316,7 @@ function ScanContent() {
           Verify your email for one free scan
         </h1>
         <p className="mt-2 text-[var(--text-secondary)]">
-          We’ll send you a one-time link. One free scan per email—no new tabs or browsers to get another.
+          We’ll send you a one-time link to sign in. You get one free scan per email—simple and straightforward.
         </p>
         {verifyMessage && (
           <p
