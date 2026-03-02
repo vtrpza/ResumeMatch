@@ -77,7 +77,25 @@ function ScanContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ stripeSessionId }),
         });
+        const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).catch(() => null);
+        if (cancelled) return;
+        setUsageError(false);
+        if (res?.ok) {
+          const u = await res.json().catch(() => null);
+          if (u != null && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
+            setShowPaywall(u.scanCount >= 1 + u.purchasedScans);
+            if (u.purchasedScans > 0) {
+              setPremium();
+              capture("checkout_completed", { source: "redirect" });
+              capture("premium_unlocked", { source: "checkout" });
+            }
+          }
+        } else if (res) {
+          setUsageError(true);
+          setShowPaywall(false);
+        }
         router.replace("/scan", { scroll: false });
+        return;
       }
 
       const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).catch(() => null);
