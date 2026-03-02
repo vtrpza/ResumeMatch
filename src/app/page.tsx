@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { LandingTracker } from "@/components/LandingTracker";
+import { CtaLink } from "@/components/CtaLink";
 
 export default function HomePage() {
   return (
@@ -8,27 +8,33 @@ export default function HomePage() {
       <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20">
         {/* Hero Section */}
         <section className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl sm:leading-tight">
-            See how your resume matches the job before you apply
+          <p className="text-sm font-medium text-zinc-500 sm:text-base">
+            Resume Gap Scanner
+          </p>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white sm:text-5xl sm:leading-tight">
+            Match your resume to the job—before you apply
           </h1>
           <p className="mt-4 text-lg text-zinc-400 sm:mt-6 sm:text-xl">
-            Upload your resume, paste the job description, and get an instant
-            match score, missing keywords, ATS risks, and stronger bullet
-            rewrites—no fluff, no fabrication.
+            Upload your PDF, paste the job description. Get a match score,
+            missing keywords, ATS risks, and stronger bullets in seconds. No
+            fluff, no fabrication.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:justify-center">
-            <Link
+            <CtaLink
               href="/scan"
+              cta="hero_scan"
               className="rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 sm:text-base"
             >
               Scan your resume
-            </Link>
-            <Link
+            </CtaLink>
+            <CtaLink
               href="#preview"
+              cta="hero_sample_report"
+              alsoCapture="sample_report_viewed"
               className="rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800 sm:text-base"
             >
               See sample report
-            </Link>
+            </CtaLink>
           </div>
         </section>
 
@@ -37,6 +43,7 @@ export default function HomePage() {
           <h2 className="text-center text-2xl font-semibold text-white sm:text-3xl">
             How it works
           </h2>
+          <p className="mt-2 text-center text-zinc-500">Three steps, one report.</p>
           <div className="mt-12 grid gap-8 sm:grid-cols-3 sm:gap-6">
             <div className="text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800 text-xl font-semibold text-white">
@@ -46,7 +53,7 @@ export default function HomePage() {
                 Upload your resume
               </h3>
               <p className="mt-2 text-sm text-zinc-400">
-                Upload your resume PDF. We analyze the content, structure, and
+                Upload your resume PDF. We analyze content, structure, and
                 formatting.
               </p>
             </div>
@@ -58,8 +65,8 @@ export default function HomePage() {
                 Paste the job description
               </h3>
               <p className="mt-2 text-sm text-zinc-400">
-                Copy and paste the full job description. We compare it against
-                your resume.
+                Paste the full job description. We compare it against your
+                resume.
               </p>
             </div>
             <div className="text-center">
@@ -70,7 +77,8 @@ export default function HomePage() {
                 Get your report
               </h3>
               <p className="mt-2 text-sm text-zinc-400">
-                Receive a detailed analysis with actionable insights in seconds.
+                Get a report in seconds—match score, gaps, risks, and stronger
+                bullets.
               </p>
             </div>
           </div>
@@ -343,12 +351,13 @@ export default function HomePage() {
           <p className="mt-4 text-lg text-zinc-400">
             Get your first scan free. No credit card required.
           </p>
-          <Link
+          <CtaLink
             href="/scan"
+            cta="final_scan"
             className="mt-8 inline-block rounded-lg bg-white px-8 py-3.5 text-base font-medium text-zinc-900 transition hover:bg-zinc-200"
           >
             Start your free scan
-          </Link>
+          </CtaLink>
         </section>
       </main>
     </>
