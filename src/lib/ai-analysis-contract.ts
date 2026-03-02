@@ -85,9 +85,40 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
             maxLength: 200,
           },
           minItems: 0,
-          maxItems: 10,
+          maxItems: 6,
           description:
-            "Concrete ATS parsing risks that materially affect parsing or screening. Limit to 3-5 high-impact risks. Prefer quality over quantity. Do not list multiple variations of the same issue. Omit generic nitpicks that rarely change outcomes. Examples: 'Two-column layout may confuse parsers', 'Missing skills section', 'Non-standard date format'. Must be specific and actionable.",
+            "Concrete ATS parsing risks that materially affect parsing or screening. Limit to 3-5 high-impact risks. Prioritize issues that materially affect parsing or matching: layout problems, missing sections, non-standard dates, parsing blockers. De-emphasize generic formatting nags ('use standard headings', 'ensure consistent formatting') unless there is a specific problem. Do not list multiple variations of the same issue. Omit template-like advice. Examples: 'Two-column layout may confuse parsers', 'Missing skills section', 'Non-standard date format'. Must be specific and actionable.",
+        },
+        gapGroups: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              theme: {
+                type: "string",
+                minLength: 1,
+                maxLength: 60,
+                description: "Theme name describing the type of mismatch (e.g., 'Core frontend stack', 'Backend/integration', 'Process/environment', 'Testing/tooling', 'Optional/nice-to-have').",
+              },
+              items: {
+                type: "array",
+                items: {
+                  type: "string",
+                  minLength: 1,
+                  maxLength: 100,
+                },
+                minItems: 1,
+                maxItems: 15,
+                description: "Missing keywords or skills that belong to this theme. Each item must be from the JD.",
+              },
+            },
+            required: ["theme", "items"],
+            additionalProperties: false,
+          },
+          minItems: 0,
+          maxItems: 8,
+          description:
+            "OPTIONAL: Group missing keywords/skills into meaningful themes when it improves diagnostic clarity (e.g., 3+ distinct themes). Each group has a theme name and items. Suggested themes: core frontend stack, legacy stack mismatch, backend/integration, process/environment, testing/tooling, optional/nice-to-have. Only use gapGroups when grouping adds clarity—if gaps don't naturally group into 3+ distinct themes, leave gapGroups empty and use missingKeywords/missingSkills. Items in gapGroups should be from missingKeywords/missingSkills (no duplication required, but items should align).",
         },
         weakBullets: {
           type: "array",
@@ -155,6 +186,7 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         "confidence",
         "extractionQuality",
       ],
+      // gapGroups is optional (not in required array)
       additionalProperties: false,
     },
   },
@@ -163,6 +195,11 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
 /**
  * TypeScript interface matching the JSON schema.
  */
+export interface GapGroup {
+  theme: string;
+  items: string[];
+}
+
 export interface ScanAnalysis {
   matchScore: number; // 0-100
   missingKeywords: string[];
@@ -176,6 +213,7 @@ export interface ScanAnalysis {
   confidence: number; // 0-1
   extractionQuality: "high" | "medium" | "low";
   matchScoreReasoning?: string; // optional 20-200 chars
+  gapGroups?: GapGroup[]; // Optional: thematic grouping of gaps
 }
 
 // ============================================================================
@@ -203,16 +241,17 @@ GAP PRIORITIZATION:
 - criticalMissingSkills (OPTIONAL): Output the most critical missing skills using the same criteria. For matchScore >= 75, use very sparingly: 0-2 total items.
 - missingKeywords: All other missing keywords from JD, ordered by priority (most critical first if not using criticalMissingKeywords).
 - missingSkills: All other missing skills, ordered by priority (most critical first if not using criticalMissingSkills).
+- gapGroups (OPTIONAL): When gaps naturally group into 3+ distinct themes, output gapGroups to make the mismatch type clearer. Each group has a theme (e.g., "Core frontend stack", "Backend/integration", "Process/environment", "Testing/tooling", "Optional/nice-to-have") and items (missing keywords/skills from JD). Only use gapGroups when grouping adds diagnostic clarity—if gaps don't naturally group into meaningful themes, leave gapGroups empty and use missingKeywords/missingSkills. Items in gapGroups should align with missingKeywords/missingSkills (no strict duplication required, but should represent the same gaps).
 
 ATS RISKS:
-- atsRisks: Limit to 3-5 high-impact risks that materially affect parsing or screening. Prefer quality over quantity. Do not list multiple variations of the same issue. Omit generic nitpicks that rarely change outcomes. Be concrete: "Two-column layout may confuse parsers", "Missing skills section", "Non-standard date format".
+- atsRisks: Limit to 3-5 high-impact risks that materially affect parsing or screening. Prioritize issues that materially affect parsing or matching: layout problems, missing sections, non-standard dates, parsing blockers. De-emphasize generic formatting nags ("use standard headings", "ensure consistent formatting") unless there is a specific problem. Do not list multiple variations of the same issue. Omit template-like advice. Prefer quality over quantity. Be concrete: "Two-column layout may confuse parsers", "Missing skills section", "Non-standard date format".
 
 BULLET REWRITES:
 - weakBullets: ONLY include bullets where you can provide a genuinely stronger rewrite. Omit bullets that are already strong or where the rewrite would be only a minor cosmetic change.
 - rewrittenBullets: Each rewrite must be materially stronger: tighter wording, sharper verbs, clearer outcome, or better role alignment. Prefer concise, punchy rewrites. FORBIDDEN: cosmetic adjective swaps; empty intensifiers ('successfully', 'effectively', 'significantly' unless they add real value); business-school filler; longer-but-not-better sentences; turning an already-good bullet into a softer, more verbose one. Stay grounded—never invent metrics, team sizes, impact, or scope not supported by the source. Only output pairs where the rewrite is clearly stronger than the original.
 
 TAILORED SUMMARY:
-- tailoredSummary: 2-3 sentences. TONE: Strategic and useful—'this is how your profile aligns with this role'—not robotic or defensive. For strong fit (matchScore >= 75): Lead with alignment and 2-3 strengths; mention only 1-2 meaningful refinements. The report should feel like "strong match + actionable refinements," not "you are missing too much despite a high score." For weak fit: Be honest about strengths and material mismatches; frame as a fair fit assessment, not a rejection. Do not claim strength in an area that you also list as a critical gap unless you explain the nuance (e.g., partial experience). Use only facts from the resume. No fabrication.
+- tailoredSummary: 2-3 sentences. STRUCTURE: First sentence must state fit level clearly (e.g., "Strong fit for this role." / "Partial fit—strengths in X but material gaps in Y." / "Limited fit given the role's focus on Z."). TONE: Strategic and useful—'this is how your profile aligns with this role'—not robotic or defensive. For strong fit (matchScore >= 75): Confident tone; reinforce why the role fits; lead with 2-3 real strengths; mention only 1-2 meaningful refinements. The report should feel like "strong match + actionable refinements," not "you are missing too much despite a high score." For weak fit: Decisive tone; name the mismatch type (e.g., technical stack, experience level, domain); be honest about strengths and material gaps; no watered-down or apologetic language. Avoid vague consultant phrasing ("Consider highlighting," "You may want to"); prefer direct, strategic language. Do not claim strength in an area that you also list as a critical gap unless you explain the nuance (e.g., partial experience). Use only facts from the resume. No fabrication.
 
 QUALITY METRICS:
 - confidence (0-1): 1.0 = excellent extraction, clear content. <0.7 = poor parsing, ambiguous, very short. Use to flag fallback needs.
@@ -223,6 +262,9 @@ CONSISTENCY:
 
 REPORT QUALITY:
 Output should feel strategic and human-useful, not a generic keyword checklist. Prioritize what matters most. Focus on actionable insights that help the candidate understand fit and improve their resume. For strong-fit roles, the reader should feel "this role fits me well" and "these are useful refinements," not punished for an 85% score.
+
+PROPORTIONALITY:
+Report density must match fit level. Strong-fit reports (matchScore >= 75) should feel like "strong match + a few refinements"—few critical gaps, summary that leads with alignment, actionable polish opportunities. Weak-fit reports should clearly explain the mismatch type and avoid piling on keywords—honest assessment of why the fit is limited, not just a long list of missing items.
 
 TONE: Professional, credible, practical. Avoid hype or guarantees.`;
 
@@ -304,7 +346,49 @@ export function shouldUseFallback(
  * Fallback prompt for GPT-5 (more capable model).
  * Same schema, but with additional instructions for handling edge cases.
  */
-export const FALLBACK_SYSTEM_PROMPT = `${ANALYSIS_SYSTEM_PROMPT}
+export const FALLBACK_SYSTEM_PROMPT = `You are a resume analysis expert. Analyze resumes against job descriptions and output structured JSON.
+
+CRITICAL RULES:
+1. NEVER fabricate candidate experience, achievements, skills, or metrics.
+2. ONLY derive insights from the provided resume text and job description.
+3. If information is missing or unclear, mark it as missing—do not infer or invent.
+4. All rewritten bullets must use ONLY facts present in the original resume.
+5. Confidence score must reflect actual extraction quality and content clarity.
+
+OUTPUT REQUIREMENTS:
+- matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Always include matchScoreReasoning (20-200 chars) with a brief justification for the score.
+
+GAP PRIORITIZATION:
+- criticalMissingKeywords (OPTIONAL): Output the most critical missing keywords that materially threaten fit—explicitly mandatory in JD, core to day-one role, or repeatedly stated as essential. For matchScore >= 75 (strong fit), use very sparingly: 0-2 total items. Do NOT list as critical: optional tools, mild wording gaps, nice-to-have technologies, or adjacent skills not central to role fit. Secondary/nice-to-have deficiencies belong in missingKeywords only.
+- criticalMissingSkills (OPTIONAL): Output the most critical missing skills using the same criteria. For matchScore >= 75, use very sparingly: 0-2 total items.
+- missingKeywords: All other missing keywords from JD, ordered by priority (most critical first if not using criticalMissingKeywords).
+- missingSkills: All other missing skills, ordered by priority (most critical first if not using criticalMissingSkills).
+- gapGroups (OPTIONAL): When gaps naturally group into 3+ distinct themes, output gapGroups to make the mismatch type clearer. Each group has a theme (e.g., "Core frontend stack", "Backend/integration", "Process/environment", "Testing/tooling", "Optional/nice-to-have") and items (missing keywords/skills from JD). Only use gapGroups when grouping adds diagnostic clarity—if gaps don't naturally group into meaningful themes, leave gapGroups empty and use missingKeywords/missingSkills. Items in gapGroups should align with missingKeywords/missingSkills (no strict duplication required, but should represent the same gaps).
+
+ATS RISKS:
+- atsRisks: Limit to 3-5 high-impact risks that materially affect parsing or screening. Prioritize issues that materially affect parsing or matching: layout problems, missing sections, non-standard dates, parsing blockers. De-emphasize generic formatting nags ("use standard headings", "ensure consistent formatting") unless there is a specific problem. Do not list multiple variations of the same issue. Omit template-like advice. Prefer quality over quantity. Be concrete: "Two-column layout may confuse parsers", "Missing skills section", "Non-standard date format".
+
+BULLET REWRITES:
+- weakBullets: ONLY include bullets where you can provide a genuinely stronger rewrite. Omit bullets that are already strong or where the rewrite would be only a minor cosmetic change.
+- rewrittenBullets: Each rewrite must be materially stronger: tighter wording, sharper verbs, clearer outcome, or better role alignment. Prefer concise, punchy rewrites. FORBIDDEN: cosmetic adjective swaps; empty intensifiers ('successfully', 'effectively', 'significantly' unless they add real value); business-school filler; longer-but-not-better sentences; turning an already-good bullet into a softer, more verbose one. Stay grounded—never invent metrics, team sizes, impact, or scope not supported by the source. Only output pairs where the rewrite is clearly stronger than the original.
+
+TAILORED SUMMARY:
+- tailoredSummary: 2-3 sentences. STRUCTURE: First sentence must state fit level clearly (e.g., "Strong fit for this role." / "Partial fit—strengths in X but material gaps in Y." / "Limited fit given the role's focus on Z."). TONE: Strategic and useful—'this is how your profile aligns with this role'—not robotic or defensive. For strong fit (matchScore >= 75): Confident tone; reinforce why the role fits; lead with 2-3 real strengths; mention only 1-2 meaningful refinements. The report should feel like "strong match + actionable refinements," not "you are missing too much despite a high score." For weak fit: Decisive tone; name the mismatch type (e.g., technical stack, experience level, domain); be honest about strengths and material gaps; no watered-down or apologetic language. Avoid vague consultant phrasing ("Consider highlighting," "You may want to"); prefer direct, strategic language. Do not claim strength in an area that you also list as a critical gap unless you explain the nuance (e.g., partial experience). Use only facts from the resume. No fabrication.
+
+QUALITY METRICS:
+- confidence (0-1): 1.0 = excellent extraction, clear content. <0.7 = poor parsing, ambiguous, very short. Use to flag fallback needs.
+- extractionQuality: Assess PDF text extraction quality. "high" = clean structured text. "medium" = some formatting issues. "low" = significant parsing problems.
+
+CONSISTENCY:
+- Ensure the report is internally aligned: (a) If matchScore is high, tailoredSummary must emphasize alignment and strengths; do not list as a critical gap an area the summary describes as a strength. (b) If a skill/area is partially present in the resume, prefer listing it in missingKeywords/missingSkills as secondary, or omit from critical; avoid calling it critical while also stating the candidate is strong in that area. (c) matchScoreReasoning, tailoredSummary, and gap lists must tell one coherent story (strong fit → few critical gaps and summary that leads with alignment; weak fit → honest gaps and summary).
+
+REPORT QUALITY:
+Output should feel strategic and human-useful, not a generic keyword checklist. Prioritize what matters most. Focus on actionable insights that help the candidate understand fit and improve their resume. For strong-fit roles, the reader should feel "this role fits me well" and "these are useful refinements," not punished for an 85% score.
+
+PROPORTIONALITY:
+Report density must match fit level. Strong-fit reports (matchScore >= 75) should feel like "strong match + a few refinements"—few critical gaps, summary that leads with alignment, actionable polish opportunities. Weak-fit reports should clearly explain the mismatch type and avoid piling on keywords—honest assessment of why the fit is limited, not just a long list of missing items.
+
+TONE: Professional, credible, practical. Avoid hype or guarantees.
 
 FALLBACK MODE:
 You are using the premium model (GPT-5) because the default model encountered issues.
