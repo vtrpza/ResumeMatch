@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { setRoute } from "@/lib/sentry";
 import { runScan } from "./actions";
-import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
 import { Paywall } from "@/components/Paywall";
 import {
   shouldShowPaywall,
@@ -266,7 +265,14 @@ function ScanContent() {
           Upload your resume (PDF) and paste the job description. Your data is processed securely and not stored.
         </p>
 
-        <form id="scan-form" action={handleSubmit} className="mt-8 space-y-6 sm:space-y-8">
+        <form
+          id="scan-form"
+          className="mt-8 space-y-6 sm:space-y-8"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSubmit(new FormData(e.currentTarget));
+          }}
+        >
         <input
           type="hidden"
           name="sessionId"
@@ -353,19 +359,12 @@ function ScanContent() {
           />
         </div>
         {error && (
-          <div className="space-y-1">
-            <p
-              role="alert"
-              className="break-words rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300"
-            >
-              {error}
-            </p>
-            {error === FAILURE_MODES.SCHEMA_VALIDATION_FAILED.userMessage && (
-              <p className="text-xs text-zinc-500">
-                You can try again now or use a different resume PDF.
-              </p>
-            )}
-          </div>
+          <p
+            role="alert"
+            className="break-words rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300"
+          >
+            {error}
+          </p>
         )}
       </form>
       </div>

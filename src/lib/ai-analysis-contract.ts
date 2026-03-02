@@ -128,7 +128,6 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         "tailoredSummary",
         "confidence",
         "extractionQuality",
-        "matchScoreReasoning",
       ],
       additionalProperties: false,
     },
