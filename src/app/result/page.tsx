@@ -72,7 +72,7 @@ export default function ResultPage() {
       </Link>
       <h1 className="mt-4 text-2xl font-semibold text-white">Your scan results</h1>
       <p className="mt-2 text-sm text-zinc-400">
-        Review your match score, gaps, and improvement suggestions below.
+        Review your fit and refinements below.
       </p>
       <div className="mt-4">
         <ExportReportButton analysis={analysis} />
@@ -109,65 +109,86 @@ function buildReportMarkdown(analysis: ScanAnalysis): string {
   if (analysis.matchScoreReasoning) {
     lines.push(analysis.matchScoreReasoning, "");
   }
-  lines.push("## Gaps to close", "");
 
-  // Critical gaps (if present)
-  const hasCriticalKeywords = analysis.criticalMissingKeywords && analysis.criticalMissingKeywords.length > 0;
-  const hasCriticalSkills = analysis.criticalMissingSkills && analysis.criticalMissingSkills.length > 0;
-  const hasCriticalGaps = hasCriticalKeywords || hasCriticalSkills;
+  // Summary (moved up)
+  lines.push("## Fit summary", "", analysis.tailoredSummary, "");
 
-  if (hasCriticalGaps) {
-    lines.push("### Critical gaps", "");
-    if (hasCriticalKeywords) {
-      lines.push("**Keywords:**", "", ...analysis.criticalMissingKeywords!.map((k) => `- ${k}`), "");
+  // Gaps to close
+  lines.push("## Where to improve", "");
+
+  // Check if gapGroups is present
+  const hasGapGroups = analysis.gapGroups && analysis.gapGroups.length > 0;
+
+  if (hasGapGroups) {
+    // Render by theme groups
+    analysis.gapGroups!.forEach((group) => {
+      lines.push(`### ${group.theme}`, "");
+      group.items.forEach((item) => {
+        lines.push(`- ${item}`);
+      });
+      lines.push("");
+    });
+  } else {
+    // Fallback to Critical/Other/flat structure
+    const hasCriticalKeywords = analysis.criticalMissingKeywords && analysis.criticalMissingKeywords.length > 0;
+    const hasCriticalSkills = analysis.criticalMissingSkills && analysis.criticalMissingSkills.length > 0;
+    const hasCriticalGaps = hasCriticalKeywords || hasCriticalSkills;
+
+    if (hasCriticalGaps) {
+      lines.push("### Critical gaps", "");
+      if (hasCriticalKeywords) {
+        lines.push("**Keywords:**", "", ...analysis.criticalMissingKeywords!.map((k) => `- ${k}`), "");
+      }
+      if (hasCriticalSkills) {
+        lines.push("**Skills:**", "", ...analysis.criticalMissingSkills!.map((s) => `- ${s}`), "");
+      }
+      lines.push("");
     }
-    if (hasCriticalSkills) {
-      lines.push("**Skills:**", "", ...analysis.criticalMissingSkills!.map((s) => `- ${s}`), "");
+
+    // Other gaps (excluding items already in critical)
+    const criticalKeywordSet = new Set(analysis.criticalMissingKeywords || []);
+    const criticalSkillSet = new Set(analysis.criticalMissingSkills || []);
+    const otherKeywords = analysis.missingKeywords.filter((k) => !criticalKeywordSet.has(k));
+    const otherSkills = analysis.missingSkills.filter((s) => !criticalSkillSet.has(s));
+
+    if (otherKeywords.length > 0 || otherSkills.length > 0) {
+      lines.push("### Other gaps", "");
+      if (otherKeywords.length > 0) {
+        lines.push("**Keywords:**", "", ...otherKeywords.map((k) => `- ${k}`), "");
+      }
+      if (otherSkills.length > 0) {
+        lines.push("**Skills:**", "", ...otherSkills.map((s) => `- ${s}`), "");
+      }
+      lines.push("");
+    } else if (!hasCriticalGaps) {
+      // Fallback: show all gaps if no critical gaps structure
+      if (analysis.missingKeywords.length > 0) {
+        lines.push("### Missing keywords", "", ...analysis.missingKeywords.map((k) => `- ${k}`), "");
+      }
+      if (analysis.missingSkills.length > 0) {
+        lines.push("### Missing skills", "", ...analysis.missingSkills.map((s) => `- ${s}`), "");
+      }
+      if (analysis.missingKeywords.length === 0 && analysis.missingSkills.length === 0) {
+        lines.push("No major keyword or skill gaps identified.", "");
+      }
     }
-    lines.push("");
   }
 
-  // Other gaps (excluding items already in critical)
-  const criticalKeywordSet = new Set(analysis.criticalMissingKeywords || []);
-  const criticalSkillSet = new Set(analysis.criticalMissingSkills || []);
-  const otherKeywords = analysis.missingKeywords.filter((k) => !criticalKeywordSet.has(k));
-  const otherSkills = analysis.missingSkills.filter((s) => !criticalSkillSet.has(s));
-
-  if (otherKeywords.length > 0 || otherSkills.length > 0) {
-    lines.push("### Other gaps", "");
-    if (otherKeywords.length > 0) {
-      lines.push("**Keywords:**", "", ...otherKeywords.map((k) => `- ${k}`), "");
-    }
-    if (otherSkills.length > 0) {
-      lines.push("**Skills:**", "", ...otherSkills.map((s) => `- ${s}`), "");
-    }
-    lines.push("");
-  } else if (!hasCriticalGaps) {
-    // Fallback: show all gaps if no critical gaps structure
-    if (analysis.missingKeywords.length > 0) {
-      lines.push("### Missing keywords", "", ...analysis.missingKeywords.map((k) => `- ${k}`), "");
-    }
-    if (analysis.missingSkills.length > 0) {
-      lines.push("### Missing skills", "", ...analysis.missingSkills.map((s) => `- ${s}`), "");
-    }
-    if (analysis.missingKeywords.length === 0 && analysis.missingSkills.length === 0) {
-      lines.push("No major keyword or skill gaps identified.", "");
-    }
-  }
-
-  lines.push("## ATS risk flags", "");
+  lines.push("## Format & parsing", "");
   if (analysis.atsRisks.length > 0) {
-    lines.push(...analysis.atsRisks.map((r) => `- ${r}`), "");
+    lines.push("### ATS risk flags", "", ...analysis.atsRisks.map((r) => `- ${r}`), "");
   } else {
     lines.push("No ATS risk flags identified.", "");
   }
+  lines.push("");
+
   if (analysis.weakBullets.length > 0 && analysis.rewrittenBullets.length === analysis.weakBullets.length) {
     lines.push("## Bullet improvements", "");
     analysis.weakBullets.forEach((weak, i) => {
       lines.push("**Original:**", weak, "", "**Suggested:**", analysis.rewrittenBullets[i] ?? "", "");
     });
   }
-  lines.push("## Tailored summary", "", analysis.tailoredSummary);
+
   return lines.join("\n");
 }
 
@@ -285,10 +306,66 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
           </div>
         </section>
 
+      {/* Summary - moved up */}
+      {summary && (
+        <div className="space-y-5">
+          <SectionLabel>Summary</SectionLabel>
+          <section className={cardClass}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-medium text-zinc-400">
+                  Fit summary
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Job-specific summary you can drop into applications or cover letters.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopySummary}
+                className="focus-ring active:opacity-90 shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700"
+              >
+                {copied ? "✓ Copied" : "Copy summary"}
+              </button>
+            </div>
+            <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
+          </section>
+        </div>
+      )}
+
       {/* Gaps to close */}
       <div className="space-y-5">
-        <SectionLabel>Gaps to close</SectionLabel>
+        <SectionLabel>Where to improve</SectionLabel>
         {(() => {
+          // Check if gapGroups is present and non-empty
+          const hasGapGroups = data.gapGroups && data.gapGroups.length > 0;
+
+          if (hasGapGroups) {
+            // Render by theme groups
+            return (
+              <>
+                {data.gapGroups!.map((group, groupIdx) => (
+                  <section key={groupIdx} className={cardClass}>
+                    <h2 className="text-sm font-medium text-zinc-400">
+                      {group.theme}
+                    </h2>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {group.items.map((item, itemIdx) => (
+                        <span
+                          key={itemIdx}
+                          className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </>
+            );
+          }
+
+          // Fallback to Critical/Other/flat structure
           const hasCriticalKeywords = data.criticalMissingKeywords && data.criticalMissingKeywords.length > 0;
           const hasCriticalSkills = data.criticalMissingSkills && data.criticalMissingSkills.length > 0;
           const hasCriticalGaps = hasCriticalKeywords || hasCriticalSkills;
@@ -431,7 +508,7 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
 
       {/* Risks to fix */}
       <div className="space-y-5">
-        <SectionLabel>Risks to fix</SectionLabel>
+        <SectionLabel>Format & parsing</SectionLabel>
         <section className={cardClass}>
           <h2 className="text-sm font-medium text-zinc-400">
             ATS risk flags
@@ -512,33 +589,6 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
         </div>
       ) : null}
 
-      {/* Summary */}
-      {summary && (
-        <div className="space-y-5">
-          <SectionLabel>Summary</SectionLabel>
-          <section className={cardClass}>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-medium text-zinc-400">
-                  Tailored summary
-                </h2>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Job-specific summary you can drop into applications or cover letters.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopySummary}
-                className="focus-ring active:opacity-90 shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700"
-              >
-                {copied ? "✓ Copied" : "Copy summary"}
-              </button>
-            </div>
-            <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
-          </section>
-        </div>
-      )}
-
       {/* Next steps */}
       <div className="space-y-5">
         <SectionLabel>Next steps</SectionLabel>
@@ -553,18 +603,21 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
             {data.atsRisks.length > 0 && (
               <li className="flex items-start gap-2">
                 <span className="text-zinc-500 mt-0.5">1.</span>
-                <span>Fix ATS risk flags first—formatting issues can prevent your resume from being parsed correctly.</span>
+                <span>Fix format & parsing issues first—formatting problems can prevent your resume from being parsed correctly.</span>
               </li>
             )}
             {(() => {
+              const hasGapGroups = data.gapGroups && data.gapGroups.length > 0;
               const hasCriticalKeywords = data.criticalMissingKeywords && data.criticalMissingKeywords.length > 0;
               const hasAnyKeywords = data.missingKeywords.length > 0;
-              if (!hasAnyKeywords) return null;
+              if (!hasAnyKeywords && !hasGapGroups) return null;
               return (
                 <li className="flex items-start gap-2">
-                  <span className="text-zinc-500 mt-0.5">2.</span>
+                  <span className="text-zinc-500 mt-0.5">{data.atsRisks.length > 0 ? "2." : "1."}</span>
                   <span>
-                    {hasCriticalKeywords
+                    {hasGapGroups
+                      ? "Address gaps by theme—prioritize the most critical areas for this role, then add other missing keywords where they naturally fit in your experience."
+                      : hasCriticalKeywords
                       ? "Address critical gaps first—these are the most important for this role. Then add other missing keywords where they naturally fit in your experience."
                       : "Add missing keywords where they naturally fit in your experience. Only include terms that accurately describe your work."}
                   </span>
@@ -573,17 +626,23 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
             })()}
             {canPair && (
               <li className="flex items-start gap-2">
-                <span className="text-zinc-500 mt-0.5">3.</span>
+                <span className="text-zinc-500 mt-0.5">{data.atsRisks.length > 0 || data.missingKeywords.length > 0 || (data.gapGroups && data.gapGroups.length > 0) ? "3." : data.atsRisks.length > 0 ? "2." : "1."}</span>
                 <span>Consider using the suggested bullet rewrites to strengthen your resume&apos;s impact.</span>
               </li>
             )}
             {summary && (
               <li className="flex items-start gap-2">
-                <span className="text-zinc-500 mt-0.5">{data.atsRisks.length > 0 || data.missingKeywords.length > 0 || canPair ? "4." : "1."}</span>
-                <span>Use the tailored summary in your application or cover letter to highlight your most relevant experience.</span>
+                <span className="text-zinc-500 mt-0.5">
+                  {data.atsRisks.length > 0 || data.missingKeywords.length > 0 || (data.gapGroups && data.gapGroups.length > 0) || canPair
+                    ? "4."
+                    : data.atsRisks.length > 0
+                    ? "2."
+                    : "1."}
+                </span>
+                <span>Use the fit summary in your application or cover letter to highlight your most relevant experience.</span>
               </li>
             )}
-            {!data.atsRisks.length && !data.missingKeywords.length && !canPair && !summary && (
+            {!data.atsRisks.length && !data.missingKeywords.length && !canPair && !summary && !(data.gapGroups && data.gapGroups.length > 0) && (
               <li className="flex items-start gap-2">
                 <span className="text-zinc-500 mt-0.5">1.</span>
                 <span>Review your match score and consider how your experience aligns with the role requirements.</span>

@@ -4,7 +4,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
-import type { ScanAnalysis } from "./ai-analysis-contract";
+import type { ScanAnalysis, GapGroup } from "./ai-analysis-contract";
 import {
   normalizeConfidence,
   normalizeMatchScore,
@@ -36,7 +36,7 @@ export function validateAndNormalizeAnalysis(
   // Validate arrays
   const missingKeywords = validateStringArray(obj.missingKeywords, 0, 20, 100);
   const missingSkills = validateStringArray(obj.missingSkills, 0, 15, 100);
-  const atsRisks = validateStringArray(obj.atsRisks, 0, 10, 200);
+  let atsRisks = validateStringArray(obj.atsRisks, 0, 6, 200);
   const weakBullets = validateStringArray(obj.weakBullets, 0, 10, 300);
   const rewrittenBullets = validateStringArray(
     obj.rewrittenBullets,
@@ -58,6 +58,12 @@ export function validateAndNormalizeAnalysis(
     5,
     100
   );
+
+  // Validate optional gapGroups
+  const gapGroups = validateGapGroups(obj.gapGroups);
+
+  // Filter ATS risks: dedupe near-duplicates and remove generic low-value phrases
+  atsRisks = filterAtsRisks(atsRisks);
 
   // Ensure 1:1 mapping between weakBullets and rewrittenBullets
   const normalizedBullets = normalizeBulletPairs(weakBullets, rewrittenBullets);
@@ -110,6 +116,11 @@ export function validateAndNormalizeAnalysis(
   }
   if (criticalMissingSkills.length > 0) {
     result.criticalMissingSkills = criticalMissingSkills;
+  }
+
+  // Add optional gapGroups if present
+  if (gapGroups.length > 0) {
+    result.gapGroups = gapGroups;
   }
 
   // Recalibrate critical gaps for high-fit roles (matchScore >= 75)
@@ -171,6 +182,96 @@ function validateExtractionQuality(value: unknown): "high" | "medium" | "low" {
     return value;
   }
   return "medium"; // Default to medium if invalid
+}
+
+/**
+ * Validate gapGroups array.
+ */
+function validateGapGroups(value: unknown): GapGroup[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const groups: GapGroup[] = [];
+  for (const group of value.slice(0, 8)) {
+    if (!group || typeof group !== "object") {
+      continue;
+    }
+
+    const theme = typeof group.theme === "string" ? group.theme.trim().slice(0, 60) : "";
+    if (!theme) {
+      continue;
+    }
+
+    const items = validateStringArray(group.items, 1, 15, 100);
+    if (items.length === 0) {
+      continue;
+    }
+
+    groups.push({ theme, items });
+  }
+
+  return groups;
+}
+
+/**
+ * Filter ATS risks: remove near-duplicates and generic low-value phrases.
+ */
+function filterAtsRisks(risks: string[]): string[] {
+  if (risks.length === 0) {
+    return [];
+  }
+
+  // Generic low-value phrase patterns (minimal blocklist)
+  const genericPatterns = [
+    /^consider using standard section headings$/i,
+    /^ensure consistent formatting$/i,
+  ];
+
+  // Filter out generic phrases
+  let filtered = risks.filter((risk) => {
+    const trimmed = risk.trim().toLowerCase();
+    return !genericPatterns.some((pattern) => pattern.test(trimmed));
+  });
+
+  // Dedupe near-duplicates (high string similarity)
+  const deduped: string[] = [];
+  for (const risk of filtered) {
+    const riskLower = risk.toLowerCase().trim();
+    const isDuplicate = deduped.some((existing) => {
+      const existingLower = existing.toLowerCase().trim();
+      const similarity = calculateStringSimilarity(riskLower, existingLower);
+      return similarity > 0.85; // 85% similarity threshold
+    });
+
+    if (!isDuplicate) {
+      deduped.push(risk);
+    }
+  }
+
+  return deduped;
+}
+
+/**
+ * Calculate string similarity ratio (0-1) using word overlap and edit distance.
+ */
+function calculateStringSimilarity(s1: string, s2: string): number {
+  if (s1 === s2) return 1.0;
+
+  // Word overlap ratio
+  const words1 = new Set(s1.split(/\s+/).filter(Boolean));
+  const words2 = new Set(s2.split(/\s+/).filter(Boolean));
+  const intersection = new Set([...words1].filter((w) => words2.has(w)));
+  const union = new Set([...words1, ...words2]);
+  const wordOverlap = union.size > 0 ? intersection.size / union.size : 0;
+
+  // Edit distance ratio
+  const maxLen = Math.max(s1.length, s2.length);
+  const editDistance = simpleEditDistance(s1, s2);
+  const editRatio = maxLen > 0 ? 1 - editDistance / maxLen : 0;
+
+  // Weighted combination (favor word overlap for ATS risks)
+  return wordOverlap * 0.7 + editRatio * 0.3;
 }
 
 /**
