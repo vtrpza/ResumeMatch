@@ -4,7 +4,7 @@ import { setRoute } from "@/lib/sentry";
 import { stripe, STRIPE_PRICE_SCAN } from "@/lib/stripe";
 
 const CHECKOUT_NOT_CONFIGURED =
-  "Checkout not configured. Set up Stripe and STRIPE_PRICE_SCAN for $2 per scan.";
+  "Payment is not available. Add a $2 one-time price in Stripe and set STRIPE_PRICE_SCAN in .env.local (see .env.example).";
 
 function getBaseUrl(request: Request): string {
   const url = process.env.NEXT_PUBLIC_APP_URL?.trim();
