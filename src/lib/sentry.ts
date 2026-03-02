@@ -34,6 +34,8 @@ export function setScanContext(ctx: {
   confidence?: number;
   extractionQuality?: string;
   analysisValid?: boolean;
+  /** Reason when validation fails after all retries (e.g. all_attempts_returned_null). */
+  validationFailureReason?: string;
 }): void {
   Sentry.setContext("scan", ctx);
 }

@@ -599,7 +599,7 @@ export const FAILURE_MODES: Record<string, FailureMode> = {
     retry: true,
     fallback: true,
     userMessage:
-      "Analysis encountered an error. Please try again or contact support if the issue persists.",
+      "Analysis didn't complete. Try again in a moment; if it keeps happening, try a shorter job description or a different resume PDF.",
   },
   INVALID_RESPONSE: {
     error: "AI returned invalid or empty response",

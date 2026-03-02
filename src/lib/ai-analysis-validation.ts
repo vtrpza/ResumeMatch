@@ -3,6 +3,7 @@
  * Ensures outputs conform to schema and handles edge cases.
  */
 
+import * as Sentry from "@sentry/nextjs";
 import type { ScanAnalysis } from "./ai-analysis-contract";
 import {
   normalizeConfidence,
@@ -17,6 +18,10 @@ export function validateAndNormalizeAnalysis(
   raw: unknown
 ): ScanAnalysis | null {
   if (!raw || typeof raw !== "object") {
+    Sentry.setTag(
+      "validation_fail",
+      !raw ? "raw_falsy" : "raw_not_object"
+    );
     return null;
   }
 

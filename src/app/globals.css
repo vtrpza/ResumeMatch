@@ -46,6 +46,22 @@ body {
   .scan-shimmer {
     animation: scan-shimmer 2.5s ease-in-out infinite;
   }
+
+  /* Premium loading: smooth ring spinner on light CTA (dark stroke on white btn) */
+  .spinner-ring {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid rgba(0, 0, 0, 0.08);
+    border-top-color: rgb(24 24 27); /* zinc-900 */
+    border-radius: 50%;
+    animation: spinner-ring 0.7s linear infinite;
+  }
+}
+
+@keyframes spinner-ring {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse-soft {

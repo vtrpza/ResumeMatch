@@ -175,6 +175,9 @@ export async function analyzeResume(
   const finalError =
     lastError ||
     new Error("AI response does not match expected schema or validation failed");
+  if (!lastError) {
+    setScanContext({ validationFailureReason: "all_attempts_returned_null" });
+  }
   captureScanError(finalError, { stage: "llm_analysis", code: "validation_failed" });
   throw finalError;
 }

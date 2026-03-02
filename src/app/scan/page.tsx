@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { setRoute } from "@/lib/sentry";
 import { runScan } from "./actions";
+import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
 import { Paywall } from "@/components/Paywall";
 import {
   shouldShowPaywall,
@@ -265,7 +266,7 @@ function ScanContent() {
           Upload your resume (PDF) and paste the job description. Your data is processed securely and not stored.
         </p>
 
-        <form action={handleSubmit} className="mt-8 space-y-6 sm:space-y-8">
+        <form id="scan-form" action={handleSubmit} className="mt-8 space-y-6 sm:space-y-8">
         <input
           type="hidden"
           name="sessionId"
@@ -352,30 +353,42 @@ function ScanContent() {
           />
         </div>
         {error && (
-          <p
-            role="alert"
-            className="break-words rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300"
-          >
-            {error}
-          </p>
-        )}
-        <div className="sticky bottom-0 -mx-4 bg-zinc-950 py-4 px-4 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
-          <button
-            type="submit"
-            disabled={loading}
-            className="focus-ring active:opacity-90 w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-3">
-                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" />
-                <span>{LOADING_STEPS[loadingStep]}</span>
-              </span>
-            ) : (
-              "Run scan"
+          <div className="space-y-1">
+            <p
+              role="alert"
+              className="break-words rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300"
+            >
+              {error}
+            </p>
+            {error === FAILURE_MODES.SCHEMA_VALIDATION_FAILED.userMessage && (
+              <p className="text-xs text-zinc-500">
+                You can try again now or use a different resume PDF.
+              </p>
             )}
-          </button>
-        </div>
+          </div>
+        )}
       </form>
+      </div>
+
+      <div className="sticky bottom-0 -mx-4 bg-zinc-950 py-4 px-4 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
+        <button
+          form="scan-form"
+          type="submit"
+          disabled={loading}
+          aria-busy={loading}
+          aria-live={loading ? "polite" : undefined}
+          aria-label={loading ? `Scan in progress: ${LOADING_STEPS[loadingStep]}` : "Run scan"}
+          className="focus-ring active:opacity-90 w-full min-w-[7.5rem] rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition-[background-color,opacity] duration-200 ease-out hover:bg-zinc-200 disabled:opacity-90 disabled:cursor-not-allowed sm:w-auto"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2.5" aria-hidden>
+              <span className="spinner-ring shrink-0" />
+              <span>{LOADING_STEPS[loadingStep]}</span>
+            </span>
+          ) : (
+            "Run scan"
+          )}
+        </button>
       </div>
     </main>
   );
