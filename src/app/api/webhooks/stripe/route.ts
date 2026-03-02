@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
-import { incrementPurchasedScans } from "@/lib/db";
+import { creditPurchaseIfNew } from "@/lib/db";
 import { setRoute } from "@/lib/sentry";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -34,9 +34,10 @@ export async function POST(request: NextRequest) {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      const sessionId = session.metadata?.session_id;
-      if (sessionId) {
-        await incrementPurchasedScans(sessionId);
+      const stripeSessionId = session.id;
+      const appSessionId = session.metadata?.session_id;
+      if (stripeSessionId && appSessionId) {
+        await creditPurchaseIfNew(stripeSessionId, appSessionId);
       }
     }
     return NextResponse.json({ received: true });

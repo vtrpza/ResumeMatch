@@ -40,7 +40,7 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/scan?success=1`,
+      success_url: `${baseUrl}/scan?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/scan`,
       metadata: {
         session_id: sessionId,
@@ -58,8 +58,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: session.url });
   } catch (err) {
     Sentry.captureException(err);
+    const message =
+      err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
+        ? (err as { message: string }).message
+        : "Checkout request failed";
     return NextResponse.json(
-      { error: "Checkout request failed" },
+      { error: message },
       { status: 500 }
     );
   }

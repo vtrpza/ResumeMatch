@@ -95,3 +95,32 @@ export async function incrementPurchasedScans(
     console.error("incrementPurchasedScans error:", e);
   }
 }
+
+/**
+ * Credit one purchased scan for this Stripe checkout session, only once per stripe_session_id.
+ * Safe to call from both redirect confirm and webhook.
+ */
+export async function creditPurchaseIfNew(
+  stripeSessionId: string,
+  appSessionId: string
+): Promise<boolean> {
+  const sql = getSql();
+  if (!sql) return false;
+
+  try {
+    const inserted = await sql`
+      insert into processed_checkouts (stripe_session_id)
+      values (${stripeSessionId})
+      on conflict (stripe_session_id) do nothing
+      returning stripe_session_id
+    `;
+    if (inserted.length > 0) {
+      await incrementPurchasedScans(appSessionId);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error("creditPurchaseIfNew error:", e);
+    return false;
+  }
+}

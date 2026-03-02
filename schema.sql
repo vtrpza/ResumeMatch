@@ -13,3 +13,8 @@ alter table sessions add column if not exists purchased_scans int not null defau
 
 -- Optional: index for cleanup of old sessions
 create index if not exists idx_sessions_subscription on sessions (subscription_valid_until) where subscription_valid_until is not null;
+
+-- Idempotent checkout credit (redirect + webhook can both run; credit once per Stripe session)
+create table if not exists processed_checkouts (
+  stripe_session_id text primary key
+);

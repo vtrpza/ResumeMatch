@@ -70,17 +70,32 @@ function ScanContent() {
 
     const sessionId = getOrCreateSessionId();
     async function check() {
-      if (searchParams.get("success") === "1") {
-        const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`);
-        if (res.ok) {
-          const u = await res.json();
-          if (u && typeof u.purchasedScans === "number" && u.purchasedScans > 0) {
-            setPremium();
-            capture("checkout_completed", { source: "redirect" });
-            capture("premium_unlocked", { source: "checkout" });
+      const stripeSessionId = searchParams.get("session_id");
+      if (searchParams.get("success") === "1" && stripeSessionId) {
+        await fetch("/api/checkout/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stripeSessionId }),
+        });
+        const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).catch(() => null);
+        if (cancelled) return;
+        setUsageError(false);
+        if (res?.ok) {
+          const u = await res.json().catch(() => null);
+          if (u != null && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
+            setShowPaywall(u.scanCount >= 1 + u.purchasedScans);
+            if (u.purchasedScans > 0) {
+              setPremium();
+              capture("checkout_completed", { source: "redirect" });
+              capture("premium_unlocked", { source: "checkout" });
+            }
           }
+        } else if (res) {
+          setUsageError(true);
+          setShowPaywall(false);
         }
         router.replace("/scan", { scroll: false });
+        return;
       }
 
       const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).catch(() => null);
