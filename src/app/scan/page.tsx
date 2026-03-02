@@ -26,6 +26,70 @@ const LOADING_STEPS = [
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
+function VerifyEmailForm({
+  onSent,
+  onError,
+}: {
+  onSent: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) {
+      onError("Enter your email address.");
+      return;
+    }
+    setSending(true);
+    onError("");
+    try {
+      const res = await fetch("/api/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        onSent();
+      } else {
+        onError(typeof data.error === "string" ? data.error : "Failed to send. Try again.");
+      }
+    } catch {
+      onError("Something went wrong. Try again.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      <label htmlFor="verify-email" className="block text-sm font-medium text-[var(--text-secondary)]">
+        Email address
+      </label>
+      <input
+        id="verify-email"
+        type="email"
+        autoComplete="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        disabled={sending}
+        className="min-h-[44px] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2 text-base text-[var(--text-primary)] placeholder-[var(--text-faint)] focus:border-[var(--accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 disabled:opacity-70"
+      />
+      <button
+        type="submit"
+        disabled={sending}
+        className="focus-ring min-h-[44px] rounded-lg bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-[var(--bg-deep)] hover:bg-[var(--accent-hover)] disabled:opacity-70"
+      >
+        {sending ? "Sending…" : "Send verification link"}
+      </button>
+    </form>
+  );
+}
+
 function ScanContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,6 +98,9 @@ function ScanContent() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [showPaywall, setShowPaywall] = useState<boolean | null>(null);
   const [usageError, setUsageError] = useState(false);
+  const [requiresVerification, setRequiresVerification] = useState(false);
+  const [verifyEmailSent, setVerifyEmailSent] = useState(false);
+  const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,10 +145,14 @@ function ScanContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ stripeSessionId }),
+          credentials: "include",
         });
-        const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).catch(() => null);
+        const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`, {
+          credentials: "include",
+        }).catch(() => null);
         if (cancelled) return;
         setUsageError(false);
+        setRequiresVerification(false);
         if (res?.ok) {
           const u = await res.json().catch(() => null);
           if (u != null && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
@@ -92,6 +163,15 @@ function ScanContent() {
               capture("premium_unlocked", { source: "checkout", revenue: 2, currency: "USD" });
             }
           }
+        } else if (res?.status === 401) {
+          const data = await res.json().catch(() => ({}));
+          if (data.requiresVerification) {
+            setRequiresVerification(true);
+            setShowPaywall(false);
+          } else {
+            setUsageError(true);
+            setShowPaywall(false);
+          }
         } else if (res) {
           setUsageError(true);
           setShowPaywall(false);
@@ -100,14 +180,42 @@ function ScanContent() {
         return;
       }
 
-      const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).catch(() => null);
+      const verifyParam = searchParams.get("verify");
+      if (verifyParam === "expired") {
+        setVerifyMessage("That link has expired. Request a new one below.");
+      } else if (verifyParam === "missing") {
+        setVerifyMessage("Invalid verification link.");
+      } else if (verifyParam === "error") {
+        setVerifyMessage("Something went wrong. Please try again.");
+      }
+      if (verifyParam) {
+        router.replace("/scan", { scroll: false });
+      }
+
+      const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`, {
+        credentials: "include",
+      }).catch(() => null);
       if (cancelled) return;
       if (!res || res.status === 503 || res.status >= 500) {
         setUsageError(!!res);
         setShowPaywall(false);
+        setRequiresVerification(false);
+        return;
+      }
+      if (res.status === 401) {
+        const data = await res.json().catch(() => ({}));
+        if (data.requiresVerification) {
+          setRequiresVerification(true);
+          setShowPaywall(false);
+        } else {
+          setUsageError(true);
+          setShowPaywall(false);
+        }
+        setUsageError(false);
         return;
       }
       setUsageError(false);
+      setRequiresVerification(false);
       if (res.ok) {
         const u = await res.json().catch(() => null);
         if (u != null && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
@@ -191,8 +299,45 @@ function ScanContent() {
     }
   }
 
-  if (showPaywall === null && !usageError) {
+  if (showPaywall === null && !usageError && !requiresVerification) {
     return <PageLoadingView variant="scan" />;
+  }
+
+  if (requiresVerification) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
+        <Link
+          href="/"
+          className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+        >
+          ← Back
+        </Link>
+        <h1 className="mt-4 text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">
+          Verify your email for one free scan
+        </h1>
+        <p className="mt-2 text-[var(--text-secondary)]">
+          We’ll send you a one-time link. One free scan per email—no new tabs or browsers to get another.
+        </p>
+        {verifyMessage && (
+          <p
+            role="alert"
+            className="mt-4 break-words rounded-lg bg-amber-950/50 px-4 py-2 text-sm text-amber-200"
+          >
+            {verifyMessage}
+          </p>
+        )}
+        {verifyEmailSent ? (
+          <p className="mt-6 text-[var(--text-secondary)]">
+            Check your email for the verification link. It expires in 24 hours.
+          </p>
+        ) : (
+          <VerifyEmailForm
+            onSent={() => setVerifyEmailSent(true)}
+            onError={(msg) => setVerifyMessage(msg)}
+          />
+        )}
+      </main>
+    );
   }
 
   if (usageError) {

@@ -1,15 +1,20 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { setScanStage, setScanContext, captureScanError } from "@/lib/sentry";
 import { extractTextFromPdf } from "@/lib/pdf";
 import { analyzeResume, type AnalysisResult } from "@/lib/analyze";
 import { generatePremiumContent } from "@/lib/premium-generate";
 import { detectEdgeCases, adjustConfidenceForEdgeCases } from "@/lib/ai-analysis-validation";
 import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
-import { getUsage, getOrCreateAndIncrementScan } from "@/lib/db";
+import {
+  getOrCreateAndIncrementScan,
+  getUsageForIdentity,
+  incrementScanForIdentity,
+} from "@/lib/db";
 import { isFullAppEnabled, isDatabaseAvailable } from "@/lib/feature-config";
+import { getIdentityFromCookie, IDENTITY_COOKIE_NAME } from "@/lib/identity-auth";
 
 interface ScanResult {
   ok: boolean;
@@ -90,15 +95,21 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
         };
       }
 
-      // Enforce paywall server-side when full app + DB: require session and check usage.
+      let identityId: string | null = null;
+
+      // Full app: enforce paywall by verified identity (cookie), not client sessionId
       if (fullApp && dbAvailable) {
-        if (!sessionId) {
+        const cookieStore = await cookies();
+        const token = cookieStore.get(IDENTITY_COOKIE_NAME)?.value;
+        const identity = await getIdentityFromCookie(token);
+        if (!identity) {
           return {
             ok: false,
-            error: "Session required. Refresh the page and try again.",
+            error: "Verify your email to run your free scan.",
           };
         }
-        const usage = await getUsage(sessionId);
+        identityId = identity.id;
+        const usage = await getUsageForIdentity(identity.id);
         if (usage) {
           const allowed = 1 + usage.purchasedScans;
           if (usage.scanCount >= allowed) {
@@ -112,8 +123,12 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
 
       try {
         const result = await runScanPipeline(resume, jdTrimmed);
-        if (result.ok && sessionId) {
-          await getOrCreateAndIncrementScan(sessionId);
+        if (result.ok) {
+          if (identityId) {
+            await incrementScanForIdentity(identityId);
+          } else if (sessionId) {
+            await getOrCreateAndIncrementScan(sessionId);
+          }
         }
         return result;
       } catch (err) {

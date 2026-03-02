@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { setRoute } from "@/lib/sentry";
 import { stripe } from "@/lib/stripe";
-import { creditPurchaseIfNew } from "@/lib/db";
+import { creditPurchaseIfNew, creditPurchaseForIdentityIfNew } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   setRoute("api_checkout_confirm");
@@ -34,16 +34,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const identityId = session.metadata?.identity_id;
     const appSessionId = session.metadata?.session_id;
-    if (!appSessionId || typeof appSessionId !== "string") {
-      return NextResponse.json(
-        { error: "Invalid session metadata" },
-        { status: 400 }
-      );
+    if (identityId && typeof identityId === "string") {
+      const credited = await creditPurchaseForIdentityIfNew(stripeSessionId, identityId);
+      return NextResponse.json({ ok: true, credited });
     }
-
-    const credited = await creditPurchaseIfNew(stripeSessionId, appSessionId);
-    return NextResponse.json({ ok: true, credited });
+    if (appSessionId && typeof appSessionId === "string") {
+      const credited = await creditPurchaseIfNew(stripeSessionId, appSessionId);
+      return NextResponse.json({ ok: true, credited });
+    }
+    return NextResponse.json(
+      { error: "Invalid session metadata" },
+      { status: 400 }
+    );
   } catch (err) {
     Sentry.captureException(err);
     const message =

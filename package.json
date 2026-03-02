@@ -19,6 +19,7 @@
     "posthog-node": "^5.26.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "resend": "^6.9.3",
     "stripe": "^17.0.0"
   },
   "devDependencies": {

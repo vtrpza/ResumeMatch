@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
-import { creditPurchaseIfNew } from "@/lib/db";
+import { creditPurchaseIfNew, creditPurchaseForIdentityIfNew } from "@/lib/db";
 import { setRoute } from "@/lib/sentry";
 import { captureCheckoutCompletedServer } from "@/lib/analytics-server";
 
@@ -36,10 +36,16 @@ export async function POST(request: NextRequest) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const stripeSessionId = session.id;
+      const identityId = session.metadata?.identity_id;
       const appSessionId = session.metadata?.session_id;
-      if (stripeSessionId && appSessionId) {
-        await creditPurchaseIfNew(stripeSessionId, appSessionId);
-        await captureCheckoutCompletedServer(appSessionId, { source: "webhook" });
+      if (stripeSessionId) {
+        if (identityId && typeof identityId === "string") {
+          await creditPurchaseForIdentityIfNew(stripeSessionId, identityId);
+          await captureCheckoutCompletedServer(identityId, { source: "webhook" });
+        } else if (appSessionId && typeof appSessionId === "string") {
+          await creditPurchaseIfNew(stripeSessionId, appSessionId);
+          await captureCheckoutCompletedServer(appSessionId, { source: "webhook" });
+        }
       }
     }
     return NextResponse.json({ received: true });
