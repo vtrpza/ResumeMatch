@@ -194,7 +194,7 @@ function ScanContent() {
     <main className="mx-auto max-w-2xl px-4 pt-10 pb-24 sm:px-6 sm:py-12 sm:pb-12">
       <Link
         href="/"
-        className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
+        className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
       >
         ← Back
       </Link>
@@ -239,7 +239,7 @@ function ScanContent() {
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={() => setDragActive(false)}
             onDrop={handleDrop}
-            className={`mt-2 flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 transition sm:min-h-[140px] ${
+            className={`focus-ring mt-2 flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 transition-colors duration-150 sm:min-h-[140px] ${
               dragActive
                 ? "border-zinc-500 bg-zinc-800/50"
                 : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-800/30"
@@ -291,7 +291,10 @@ function ScanContent() {
           />
         </div>
         {error && (
-          <p className="break-words rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300">
+          <p
+            role="alert"
+            className="break-words rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300"
+          >
             {error}
           </p>
         )}
@@ -299,7 +302,7 @@ function ScanContent() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+            className="focus-ring active:opacity-90 w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-3">

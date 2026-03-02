@@ -23,7 +23,7 @@ export default function HomePage() {
             <CtaLink
               href="/scan"
               cta="hero_scan"
-              className="rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 sm:text-base"
+              className="focus-ring active:opacity-90 rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 sm:text-base"
             >
               Scan your resume
             </CtaLink>
@@ -31,7 +31,7 @@ export default function HomePage() {
               href="#preview"
               cta="hero_sample_report"
               alsoCapture="sample_report_viewed"
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800 sm:text-base"
+              className="focus-ring active:opacity-90 rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800 sm:text-base"
             >
               See sample report
             </CtaLink>
@@ -339,7 +339,7 @@ export default function HomePage() {
           <CtaLink
             href="/scan"
             cta="final_scan"
-            className="mt-8 inline-block rounded-lg bg-white px-8 py-3.5 text-base font-medium text-zinc-900 transition hover:bg-zinc-200"
+            className="focus-ring active:opacity-90 mt-8 inline-block rounded-lg bg-white px-8 py-3.5 text-base font-medium text-zinc-900 transition hover:bg-zinc-200"
           >
             Start your free scan
           </CtaLink>

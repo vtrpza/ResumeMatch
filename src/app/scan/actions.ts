@@ -3,19 +3,46 @@
 import * as Sentry from "@sentry/nextjs";
 import { headers } from "next/headers";
 import { setScanStage, setScanContext, captureScanError } from "@/lib/sentry";
+import { extractTextFromPdf } from "@/lib/pdf";
+import { analyzeResume, type AnalysisResult } from "@/lib/analyze";
+import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
 
 interface ScanResult {
   ok: boolean;
   error: string | null;
-  analysis?: {
-    matchScore: number;
-    missingKeywords: string[];
-    missingSkills: string[];
-    atsRisks: string[];
-    weakBullets: string[];
-    rewrittenBullets: string[];
-    tailoredSummary: string;
-  };
+  analysis?: AnalysisResult;
+}
+
+function userMessageForError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("No text extracted") || msg.includes("pdf") || msg.includes("PDF")) {
+    return FAILURE_MODES.NO_TEXT_EXTRACTED.userMessage;
+  }
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    (err as { status: number }).status === 429
+  ) {
+    return FAILURE_MODES.API_RATE_LIMIT.userMessage;
+  }
+  if (msg.includes("timeout") || msg.includes("timed out")) {
+    return FAILURE_MODES.API_TIMEOUT.userMessage;
+  }
+  if (
+    msg.includes("schema") ||
+    msg.includes("validation") ||
+    msg.includes("OPENAI_API_KEY")
+  ) {
+    if (msg.includes("OPENAI_API_KEY")) {
+      return "Server configuration error. Please try again later.";
+    }
+    return FAILURE_MODES.SCHEMA_VALIDATION_FAILED.userMessage;
+  }
+  if (msg.includes("Empty") || msg.includes("invalid") || msg.includes("empty")) {
+    return FAILURE_MODES.INVALID_RESPONSE.userMessage;
+  }
+  return "Something went wrong. Please try again.";
 }
 
 export async function runScan(formData: FormData): Promise<ScanResult> {
@@ -41,48 +68,29 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
       setScanContext({ resumeSizeBytes: resume.size, jdLength: jd.length });
 
       try {
-        return await runScanPipeline(resume, jd);
+        return await runScanPipeline(resume, jd.trim());
       } catch (err) {
         captureScanError(err, { stage: "validation", code: "scan_pipeline_error" });
         return {
           ok: false,
-          error: "Something went wrong. Please try again.",
+          error: userMessageForError(err),
         };
       }
     }
   );
 }
 
-// Stub implementation; real pipeline will call PDF extract → LLM → validate
-/* eslint-disable @typescript-eslint/no-unused-vars -- params used when real pipeline is wired */
-async function runScanPipeline(
-  _resume: File,
-  _jd: string
-): Promise<ScanResult> {
-  /* eslint-enable @typescript-eslint/no-unused-vars */
-  setScanStage("validation");
+async function runScanPipeline(resume: File, jd: string): Promise<ScanResult> {
+  setScanStage("pdf_extract");
+  const buffer = Buffer.from(await resume.arrayBuffer());
+  const resumeText = await extractTextFromPdf(buffer);
+
+  setScanStage("llm_analysis");
+  const analysis = await analyzeResume(resumeText, jd);
 
   return {
     ok: true,
     error: null,
-    analysis: {
-      matchScore: 72,
-      missingKeywords: ["CI/CD", "Kubernetes", "GraphQL"],
-      missingSkills: ["Cloud architecture", "Performance optimization"],
-      atsRisks: [
-        "Resume uses two-column layout which may confuse ATS parsers",
-        "No quantified achievements in first 3 bullets",
-      ],
-      weakBullets: [
-        "Responsible for managing team projects",
-        "Helped with code reviews",
-      ],
-      rewrittenBullets: [
-        "Led cross-functional team of 8 to deliver 3 major product launches on schedule, reducing time-to-market by 20%",
-        "Conducted 150+ code reviews per quarter, catching critical bugs pre-deploy and improving team code quality score by 35%",
-      ],
-      tailoredSummary:
-        "Full-stack engineer with 5+ years building scalable web applications. Proven track record in React, Node.js, and cloud-native architectures with a focus on performance and developer experience.",
-    },
+    analysis,
   };
 }

@@ -1,96 +1,72 @@
 import OpenAI from "openai";
 import { setScanStage, setScanContext, captureScanError } from "./sentry";
-
-/**
- * Structured analysis result from GPT-5-mini (using gpt-4o-mini).
- * Never fabricate candidate experience; only derive from resume + JD.
- */
-export interface ScanAnalysis {
-  matchScore: number;
-  missingKeywords: string[];
-  missingSkills: string[];
-  atsRisks: string[];
-  weakBullets: string[];
-  rewrittenBullets: string[];
-  tailoredSummary: string;
-}
-
-const ANALYSIS_SCHEMA = {
-  type: "json_schema" as const,
-  json_schema: {
-    name: "scan_analysis",
-    strict: true,
-    schema: {
-      type: "object",
-      properties: {
-        matchScore: {
-          type: "integer",
-          description: "Overall match score 0-100",
-        },
-        missingKeywords: {
-          type: "array",
-          items: { type: "string" },
-          description: "Keywords from the job description not clearly present in the resume",
-        },
-        missingSkills: {
-          type: "array",
-          items: { type: "string" },
-          description: "Skills the job asks for that are not evidenced in the resume",
-        },
-        atsRisks: {
-          type: "array",
-          items: { type: "string" },
-          description: "ATS risk flags (e.g. non-standard formatting, missing section)",
-        },
-        weakBullets: {
-          type: "array",
-          items: { type: "string" },
-          description: "Original bullet points that are vague or weak",
-        },
-        rewrittenBullets: {
-          type: "array",
-          items: { type: "string" },
-          description: "Improved versions of weak bullets (same order as weakBullets), outcome-focused",
-        },
-        tailoredSummary: {
-          type: "string",
-          description: "2-3 sentence summary tailored to this job (only using facts from the resume)",
-        },
-      },
-      required: [
-        "matchScore",
-        "missingKeywords",
-        "missingSkills",
-        "atsRisks",
-        "weakBullets",
-        "rewrittenBullets",
-        "tailoredSummary",
-      ],
-      additionalProperties: false,
-    },
-  },
-};
-
-const SYSTEM_PROMPT = `You analyze resumes against job descriptions. Output strict JSON only.
-Rules:
-- Base everything on the resume and job description. Do not invent achievements, skills, or experience.
-- matchScore: 0-100, how well the resume matches the job.
-- missingKeywords: terms from the JD that do not appear or are not clearly reflected in the resume.
-- missingSkills: job requirements (skills) not evidenced in the resume.
-- atsRisks: concrete ATS risks (e.g. "No clear skills section", "Tables may not parse").
-- weakBullets: resume bullet points that are vague, passive, or lack impact (quote or paraphrase briefly).
-- rewrittenBullets: one improved bullet per weak bullet, same order; use strong verbs and outcomes.
-- tailoredSummary: 2-3 sentences positioning the candidate for this role using only resume facts.`;
+import {
+  type ScanAnalysis,
+  SCAN_ANALYSIS_JSON_SCHEMA,
+  ANALYSIS_SYSTEM_PROMPT,
+  buildAnalysisPrompt,
+  FALLBACK_SYSTEM_PROMPT,
+  shouldUseFallback,
+  DEFAULT_FALLBACK_CONDITIONS,
+} from "./ai-analysis-contract";
+import { validateAndNormalizeAnalysis } from "./ai-analysis-validation";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
+const FALLBACK_MODEL = "gpt-4o";
 
+export type { ScanAnalysis } from "./ai-analysis-contract";
+
+export interface AnalysisResult extends ScanAnalysis {
+  model?: string;
+}
+
+/**
+ * Call OpenAI and parse/validate response. Returns validated ScanAnalysis or null on parse/validation failure.
+ */
+async function callAnalysis(
+  openai: OpenAI,
+  resumeText: string,
+  jobDescription: string,
+  options: { model: string; systemPrompt: string }
+): Promise<ScanAnalysis | null> {
+  const truncatedResume = resumeText.slice(0, 12000);
+  const truncatedJd = jobDescription.slice(0, 8000);
+  const userContent = buildAnalysisPrompt(truncatedResume, truncatedJd);
+
+  const response = await openai.chat.completions.create({
+    model: options.model,
+    messages: [
+      { role: "system", content: options.systemPrompt },
+      { role: "user", content: userContent },
+    ],
+    response_format: SCAN_ANALYSIS_JSON_SCHEMA,
+  });
+
+  const raw = response.choices[0]?.message?.content;
+  if (!raw) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  return validateAndNormalizeAnalysis(parsed);
+}
+
+/**
+ * Analyze resume against job description using contract schema and validation.
+ * Uses gpt-4o-mini by default; falls back to gpt-4o on low confidence, extractionQuality "low", or parse/validation failure.
+ */
 export async function analyzeResume(
   resumeText: string,
   jobDescription: string
-): Promise<ScanAnalysis> {
+): Promise<AnalysisResult> {
   setScanStage("llm_analysis");
-  const model = DEFAULT_MODEL;
-  setScanContext({ model });
+  setScanContext({ model: DEFAULT_MODEL });
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -99,44 +75,72 @@ export async function analyzeResume(
     throw err;
   }
 
-  try {
-    const openai = new OpenAI({ apiKey });
-    const truncatedResume = resumeText.slice(0, 12000);
-    const truncatedJd = jobDescription.slice(0, 8000);
+  const openai = new OpenAI({ apiKey });
+  let lastError: Error | null = null;
 
-    const response = await openai.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Resume:\n${truncatedResume}\n\nJob description:\n${truncatedJd}`,
-        },
-      ],
-      response_format: ANALYSIS_SCHEMA,
-    });
+  // 1. Try default model up to maxRetries
+  for (let attempt = 1; attempt <= DEFAULT_FALLBACK_CONDITIONS.maxRetries; attempt++) {
+    setScanContext({ model: DEFAULT_MODEL });
+    try {
+      const result = await callAnalysis(openai, resumeText, jobDescription, {
+        model: DEFAULT_MODEL,
+        systemPrompt: ANALYSIS_SYSTEM_PROMPT,
+      });
 
-    const raw = response.choices[0]?.message?.content;
-    if (!raw) {
-      const err = new Error("Empty analysis response");
-      captureScanError(err, { stage: "llm_analysis", code: "empty_response" });
-      throw err;
-    }
+      if (result && !shouldUseFallback(result, null, attempt)) {
+        setScanContext({ model: DEFAULT_MODEL, analysisValid: true });
+        return { ...result, model: DEFAULT_MODEL };
+      }
 
-    const parsed = JSON.parse(raw) as ScanAnalysis;
-    if (typeof parsed.matchScore !== "number") {
-      parsed.matchScore = Math.min(100, Math.max(0, Number(parsed.matchScore) || 0));
-    }
-    setScanContext({ model, analysisValid: true });
-    return parsed;
-  } catch (err) {
-    const code =
-      err && typeof err === "object" && "status" in err
-        ? "openai_api_error"
-        : err instanceof SyntaxError
-          ? "malformed_analysis_output"
+      if (result && shouldUseFallback(result, null, attempt)) {
+        setScanContext({ model: FALLBACK_MODEL });
+        try {
+          const fallbackResult = await callAnalysis(openai, resumeText, jobDescription, {
+            model: FALLBACK_MODEL,
+            systemPrompt: FALLBACK_SYSTEM_PROMPT,
+          });
+          if (fallbackResult) {
+            setScanContext({ model: FALLBACK_MODEL, analysisValid: true });
+            return { ...fallbackResult, model: FALLBACK_MODEL };
+          }
+        } catch (fallbackErr) {
+          captureScanError(
+            fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr)),
+            { stage: "llm_analysis", code: "fallback_failed" }
+          );
+        }
+        setScanContext({ model: DEFAULT_MODEL, analysisValid: true });
+        return { ...result, model: DEFAULT_MODEL };
+      }
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const code =
+        lastError && typeof lastError === "object" && "status" in lastError
+          ? "openai_api_error"
           : "llm_analysis_failed";
-    captureScanError(err, { stage: "llm_analysis", code });
-    throw err;
+      captureScanError(lastError, { stage: "llm_analysis", code });
+    }
   }
+
+  // 2. Try fallback model once
+  setScanContext({ model: FALLBACK_MODEL });
+  try {
+    const fallbackResult = await callAnalysis(openai, resumeText, jobDescription, {
+      model: FALLBACK_MODEL,
+      systemPrompt: FALLBACK_SYSTEM_PROMPT,
+    });
+    if (fallbackResult) {
+      setScanContext({ model: FALLBACK_MODEL, analysisValid: true });
+      return { ...fallbackResult, model: FALLBACK_MODEL };
+    }
+  } catch (err) {
+    lastError = err instanceof Error ? err : new Error(String(err));
+    captureScanError(lastError, { stage: "llm_analysis", code: "fallback_failed" });
+  }
+
+  const finalError =
+    lastError ||
+    new Error("AI response does not match expected schema or validation failed");
+  captureScanError(finalError, { stage: "llm_analysis", code: "validation_failed" });
+  throw finalError;
 }

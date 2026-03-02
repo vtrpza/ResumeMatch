@@ -6,7 +6,7 @@ import { setRoute } from "@/lib/sentry";
 import { capture, captureResultViewed } from "@/lib/analytics";
 
 export default function ResultPage() {
-  const [analysis, setAnalysis] = useState<unknown>(null);
+  const [analysis, setAnalysis] = useState<unknown | null | undefined>(undefined);
 
   useEffect(() => {
     setRoute("result");
@@ -20,21 +20,33 @@ export default function ResultPage() {
       } catch {
         setAnalysis(null);
       }
+    } else {
+      setAnalysis(null);
     }
   }, []);
 
   const resultViewedSent = useRef(false);
   useEffect(() => {
-    if (analysis !== null && !resultViewedSent.current) {
-      resultViewedSent.current = true;
-      const data = analysis as Record<string, unknown>;
-      captureResultViewed({
-        matchScore: typeof data.matchScore === "number" ? data.matchScore : undefined,
-        missingKeywords: Array.isArray(data.missingKeywords) ? data.missingKeywords : undefined,
-        atsRisks: Array.isArray(data.atsRisks) ? data.atsRisks : undefined,
-      });
-    }
+    if (analysis == null || resultViewedSent.current) return;
+    const data = analysis as Record<string, unknown>;
+    resultViewedSent.current = true;
+    captureResultViewed({
+      matchScore: typeof data.matchScore === "number" ? data.matchScore : undefined,
+      missingKeywords: Array.isArray(data.missingKeywords) ? data.missingKeywords : undefined,
+      atsRisks: Array.isArray(data.atsRisks) ? data.atsRisks : undefined,
+    });
   }, [analysis]);
+
+  if (analysis === undefined) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="flex flex-col items-center gap-4 py-8">
+          <span className="h-8 w-8 shrink-0 animate-spin rounded-full border-2 border-zinc-700 border-t-transparent" />
+          <p className="text-zinc-400">Loading your report…</p>
+        </div>
+      </main>
+    );
+  }
 
   if (analysis === null) {
     return (
@@ -45,7 +57,7 @@ export default function ResultPage() {
         </p>
         <Link
           href="/scan"
-          className="mt-6 inline-block rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+          className="focus-ring active:opacity-90 mt-6 inline-block rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
         >
           Run a new scan
         </Link>
@@ -57,7 +69,7 @@ export default function ResultPage() {
     <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
       <Link
         href="/"
-        className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
+        className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
       >
         ← Home
       </Link>
@@ -78,7 +90,7 @@ export default function ResultPage() {
         </p>
         <Link
           href="/scan"
-          className="mt-4 inline-block min-h-[44px] rounded-lg bg-white px-6 py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+          className="focus-ring active:opacity-90 mt-4 inline-block min-h-[44px] rounded-lg bg-white px-6 py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
         >
           Scan another resume
         </Link>
@@ -293,7 +305,7 @@ function AnalysisView({ data }: { data: unknown }) {
               <button
                 type="button"
                 onClick={handleCopySummary}
-                className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+                className="focus-ring active:opacity-90 shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700"
               >
                 {copied ? "✓ Copied" : "Copy summary"}
               </button>

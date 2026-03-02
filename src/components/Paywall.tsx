@@ -42,15 +42,23 @@ export function Paywall({
             type="button"
             onClick={handlePay}
             disabled={isBusy}
-            className="w-full rounded-lg bg-white py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50"
+            className="focus-ring active:opacity-90 w-full rounded-lg bg-white py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Pay $2 — one-time
+            {isBusy ? (
+              <span className="flex items-center justify-center gap-3">
+                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" />
+                <span>Processing…</span>
+              </span>
+            ) : (
+              "Pay $2 — one-time"
+            )}
           </button>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 flex min-h-[44px] w-full items-center justify-center text-sm text-zinc-500 hover:text-zinc-300"
+          disabled={isBusy}
+          className="focus-ring mt-4 flex min-h-[44px] w-full items-center justify-center text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
         >
           Maybe later
         </button>
