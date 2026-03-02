@@ -63,7 +63,7 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minItems: 0,
           maxItems: 5,
           description:
-            "OPTIONAL: The 3-5 most critical missing keywords that are core to the role, repeatedly stated in the JD, or explicitly mandatory. These are the gaps that matter most for this position. If not using this field, ensure missingKeywords is ordered by priority (most critical first).",
+            "OPTIONAL: The most critical missing keywords that materially threaten fit—explicitly mandatory in JD, core to day-one role, or repeatedly stated as essential. For matchScore >= 75 (strong fit), use very sparingly: 0-2 total items. Do NOT list as critical: optional tools, mild wording gaps, nice-to-have technologies, or adjacent skills not central to role fit. If not using this field, ensure missingKeywords is ordered by priority (most critical first).",
         },
         criticalMissingSkills: {
           type: "array",
@@ -75,7 +75,7 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minItems: 0,
           maxItems: 5,
           description:
-            "OPTIONAL: The 3-5 most critical missing skills that are core to the role, repeatedly stated in the JD, or explicitly mandatory. These are the gaps that matter most for this position. If not using this field, ensure missingSkills is ordered by priority (most critical first).",
+            "OPTIONAL: The most critical missing skills that materially threaten fit—explicitly mandatory in JD, core to day-one role, or repeatedly stated as essential. For matchScore >= 75 (strong fit), use very sparingly: 0-2 total items. Do NOT list as critical: optional tools, mild wording gaps, nice-to-have technologies, or adjacent skills not central to role fit. If not using this field, ensure missingSkills is ordered by priority (most critical first).",
         },
         atsRisks: {
           type: "array",
@@ -111,7 +111,7 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minItems: 0,
           maxItems: 10,
           description:
-            "Improved versions of weakBullets, in the same order (1:1 mapping). Each rewrite must materially improve: clarity, specificity, action/result framing (where evidence exists), terminology aligned to the job, and professional strength. Stay grounded in the original—never invent metrics, team sizes, impact, or scope not supported by the source. FORBIDDEN: cosmetic adjective swaps, empty intensifiers ('successfully', 'effectively' without substance), fake specificity, fake metrics. Only output pairs where the rewrite is clearly stronger than the original.",
+            "Improved versions of weakBullets, in the same order (1:1 mapping). Each rewrite must be materially stronger: tighter wording, sharper verbs, clearer outcome, or better role alignment. Prefer concise, punchy rewrites. Stay grounded in the original—never invent metrics, team sizes, impact, or scope not supported by the source. FORBIDDEN: cosmetic adjective swaps; empty intensifiers ('successfully', 'effectively', 'significantly' unless they add real value); business-school filler; longer-but-not-better sentences; turning an already-good bullet into a softer, more verbose one. Only output pairs where the rewrite is clearly stronger than the original.",
         },
         tailoredSummary: {
           type: "string",
@@ -199,8 +199,8 @@ OUTPUT REQUIREMENTS:
 - matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Always include matchScoreReasoning (20-200 chars) with a brief justification for the score.
 
 GAP PRIORITIZATION:
-- criticalMissingKeywords (OPTIONAL): Output 3-5 most critical missing keywords that are: core to the role, repeatedly stated in the JD, or explicitly mandatory. These are the gaps that really matter for this position.
-- criticalMissingSkills (OPTIONAL): Output 3-5 most critical missing skills using the same criteria.
+- criticalMissingKeywords (OPTIONAL): Output the most critical missing keywords that materially threaten fit—explicitly mandatory in JD, core to day-one role, or repeatedly stated as essential. For matchScore >= 75 (strong fit), use very sparingly: 0-2 total items. Do NOT list as critical: optional tools, mild wording gaps, nice-to-have technologies, or adjacent skills not central to role fit. Secondary/nice-to-have deficiencies belong in missingKeywords only.
+- criticalMissingSkills (OPTIONAL): Output the most critical missing skills using the same criteria. For matchScore >= 75, use very sparingly: 0-2 total items.
 - missingKeywords: All other missing keywords from JD, ordered by priority (most critical first if not using criticalMissingKeywords).
 - missingSkills: All other missing skills, ordered by priority (most critical first if not using criticalMissingSkills).
 
@@ -209,17 +209,20 @@ ATS RISKS:
 
 BULLET REWRITES:
 - weakBullets: ONLY include bullets where you can provide a genuinely stronger rewrite. Omit bullets that are already strong or where the rewrite would be only a minor cosmetic change.
-- rewrittenBullets: Each rewrite must materially improve: clarity, specificity, action/result framing (where evidence exists), terminology aligned to the job, and professional strength. FORBIDDEN: cosmetic adjective swaps, empty intensifiers ('successfully', 'effectively' without substance), fake specificity, fake metrics. Stay grounded—never invent metrics, team sizes, impact, or scope not supported by the source.
+- rewrittenBullets: Each rewrite must be materially stronger: tighter wording, sharper verbs, clearer outcome, or better role alignment. Prefer concise, punchy rewrites. FORBIDDEN: cosmetic adjective swaps; empty intensifiers ('successfully', 'effectively', 'significantly' unless they add real value); business-school filler; longer-but-not-better sentences; turning an already-good bullet into a softer, more verbose one. Stay grounded—never invent metrics, team sizes, impact, or scope not supported by the source. Only output pairs where the rewrite is clearly stronger than the original.
 
 TAILORED SUMMARY:
-- tailoredSummary: 2-3 sentences. TONE: Strategic and useful—'this is how your profile aligns with this role'—not robotic or defensive. For strong fit: Emphasize alignment clearly; highlight 2-3 relevant strengths; mention only meaningful gaps. For weak fit: Be honest about strengths and material mismatches; frame as a fair fit assessment, not a rejection. Use only facts from the resume. No fabrication.
+- tailoredSummary: 2-3 sentences. TONE: Strategic and useful—'this is how your profile aligns with this role'—not robotic or defensive. For strong fit (matchScore >= 75): Lead with alignment and 2-3 strengths; mention only 1-2 meaningful refinements. The report should feel like "strong match + actionable refinements," not "you are missing too much despite a high score." For weak fit: Be honest about strengths and material mismatches; frame as a fair fit assessment, not a rejection. Do not claim strength in an area that you also list as a critical gap unless you explain the nuance (e.g., partial experience). Use only facts from the resume. No fabrication.
 
 QUALITY METRICS:
 - confidence (0-1): 1.0 = excellent extraction, clear content. <0.7 = poor parsing, ambiguous, very short. Use to flag fallback needs.
 - extractionQuality: Assess PDF text extraction quality. "high" = clean structured text. "medium" = some formatting issues. "low" = significant parsing problems.
 
+CONSISTENCY:
+- Ensure the report is internally aligned: (a) If matchScore is high, tailoredSummary must emphasize alignment and strengths; do not list as a critical gap an area the summary describes as a strength. (b) If a skill/area is partially present in the resume, prefer listing it in missingKeywords/missingSkills as secondary, or omit from critical; avoid calling it critical while also stating the candidate is strong in that area. (c) matchScoreReasoning, tailoredSummary, and gap lists must tell one coherent story (strong fit → few critical gaps and summary that leads with alignment; weak fit → honest gaps and summary).
+
 REPORT QUALITY:
-Output should feel strategic and human-useful, not a generic keyword checklist. Prioritize what matters most. Focus on actionable insights that help the candidate understand fit and improve their resume.
+Output should feel strategic and human-useful, not a generic keyword checklist. Prioritize what matters most. Focus on actionable insights that help the candidate understand fit and improve their resume. For strong-fit roles, the reader should feel "this role fits me well" and "these are useful refinements," not punished for an 85% score.
 
 TONE: Professional, credible, practical. Avoid hype or guarantees.`;
 
@@ -358,10 +361,10 @@ export function normalizeMatchScore(value: unknown): number {
  */
 export const EXAMPLE_OUTPUT_HIGH_QUALITY: ScanAnalysis = {
   matchScore: 85,
-  missingKeywords: ["GraphQL"],
-  missingSkills: [],
-  criticalMissingKeywords: ["Docker", "AWS Lambda"],
-  criticalMissingSkills: ["Kubernetes orchestration", "Event-driven architecture"],
+  missingKeywords: ["GraphQL", "Docker", "AWS Lambda"],
+  missingSkills: ["Kubernetes orchestration", "Event-driven architecture"],
+  criticalMissingKeywords: [],
+  criticalMissingSkills: [],
   atsRisks: [
     "Skills section uses icons instead of text, may not parse",
     "Date format inconsistent (MM/YYYY vs YYYY-MM)",

@@ -112,7 +112,10 @@ export function validateAndNormalizeAnalysis(
     result.criticalMissingSkills = criticalMissingSkills;
   }
 
-  return result;
+  // Recalibrate critical gaps for high-fit roles (matchScore >= 75)
+  const recalibrated = recalibrateCriticalGapsForHighFit(result);
+
+  return recalibrated;
 }
 
 /**
@@ -194,8 +197,63 @@ function normalizeBulletPairs(
 const SAFE_UNICODE = /[\u2013\u2014\u2018\u2019\u201C\u201D\u2022]/g;
 
 /**
+ * Recalibrate critical gaps for high-fit roles (matchScore >= 75).
+ * Caps total critical gaps at 2 and moves excess to missingKeywords/missingSkills.
+ */
+function recalibrateCriticalGapsForHighFit(
+  analysis: ScanAnalysis
+): ScanAnalysis {
+  // Only recalibrate for strong-fit roles
+  if (analysis.matchScore < 75) {
+    return analysis;
+  }
+
+  const criticalKeywords = analysis.criticalMissingKeywords || [];
+  const criticalSkills = analysis.criticalMissingSkills || [];
+  const totalCritical = criticalKeywords.length + criticalSkills.length;
+
+  // If total critical gaps <= 2, no recalibration needed
+  if (totalCritical <= 2) {
+    return analysis;
+  }
+
+  // Cap at 2 total, prioritizing keywords over skills
+  const maxCriticalKeywords = Math.min(criticalKeywords.length, 2);
+  const remainingSlots = 2 - maxCriticalKeywords;
+  const maxCriticalSkills = Math.min(criticalSkills.length, remainingSlots);
+
+  const keptKeywords = criticalKeywords.slice(0, maxCriticalKeywords);
+  const keptSkills = criticalSkills.slice(0, maxCriticalSkills);
+  const movedKeywords = criticalKeywords.slice(maxCriticalKeywords);
+  const movedSkills = criticalSkills.slice(maxCriticalSkills);
+
+  // Build new result with recalibrated gaps
+  const result: ScanAnalysis = {
+    ...analysis,
+    missingKeywords: [...(analysis.missingKeywords || []), ...movedKeywords],
+    missingSkills: [...(analysis.missingSkills || []), ...movedSkills],
+  };
+
+  // Only include critical arrays if they have items
+  if (keptKeywords.length > 0) {
+    result.criticalMissingKeywords = keptKeywords;
+  } else {
+    delete result.criticalMissingKeywords;
+  }
+
+  if (keptSkills.length > 0) {
+    result.criticalMissingSkills = keptSkills;
+  } else {
+    delete result.criticalMissingSkills;
+  }
+
+  return result;
+}
+
+/**
  * Filter out cosmetic rewrites that are too similar to the original.
  * Uses word overlap and edit distance heuristics to identify low-value rewrites.
+ * Also filters out filler-heavy rewrites (empty intensifiers, long-but-same).
  */
 function filterCosmeticRewrites(
   weak: string[],
@@ -209,6 +267,9 @@ function filterCosmeticRewrites(
     weak: [],
     rewritten: [],
   };
+
+  // Filler words that indicate low-value padding if added to original
+  const fillerStarters = ["successfully", "effectively", "significantly", "proactively"];
 
   for (let i = 0; i < weak.length; i++) {
     const original = weak[i].toLowerCase().trim();
@@ -233,16 +294,50 @@ function filterCosmeticRewrites(
     const editDistance = simpleEditDistance(original, rewrite);
     const editRatio = maxLen > 0 ? editDistance / maxLen : 0;
 
+    // Filler-start filter: exclude if rewrite starts with filler and original doesn't,
+    // and rewrite is not substantially different
+    const rewriteStartsWithFiller = fillerStarters.some((filler) =>
+      rewrite.startsWith(filler)
+    );
+    const originalStartsWithFiller = fillerStarters.some((filler) =>
+      original.startsWith(filler)
+    );
+    const hasFillerPadding =
+      rewriteStartsWithFiller && !originalStartsWithFiller;
+    const isSubstantiallyDifferent = editRatio > 0.25;
+    const isSignificantlyLonger = rewrite.length > original.length * 1.3;
+    const hasLowOverlap = overlapRatio < 0.7;
+
+    // Exclude if filler padding without substantial change
+    if (
+      hasFillerPadding &&
+      !isSubstantiallyDifferent &&
+      !(isSignificantlyLonger && hasLowOverlap)
+    ) {
+      continue;
+    }
+
+    // Long-but-same heuristic: exclude if rewrite is >1.4x length with high overlap
+    // unless edit ratio > 0.2 (substantial textual change)
+    const isLongButSame =
+      rewrite.length > original.length * 1.4 &&
+      overlapRatio > 0.75 &&
+      editRatio <= 0.2;
+
+    if (isLongButSame) {
+      continue;
+    }
+
     // Keep if rewrite is meaningfully different:
     // - Word overlap < 0.85 (not just reordering/synonyms)
     // - Edit distance ratio > 0.15 (substantial changes)
     // - Or rewrite is significantly longer (likely added specificity)
-    const isSignificantlyLonger = rewrite.length > original.length * 1.3;
+    const isSignificantlyLongerForKeep = rewrite.length > original.length * 1.3;
 
     if (
       overlapRatio < 0.85 ||
       editRatio > 0.15 ||
-      isSignificantlyLonger
+      isSignificantlyLongerForKeep
     ) {
       filtered.weak.push(weak[i]);
       filtered.rewritten.push(rewritten[i]);
