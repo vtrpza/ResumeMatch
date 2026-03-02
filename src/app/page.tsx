@@ -223,7 +223,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-medium text-zinc-400">
                     Tailored summary
                   </h3>
-                  <span className="text-xs text-zinc-500 border border-zinc-700 rounded-md px-2.5 py-1.5">Copy</span>
+                  <span className="text-xs font-medium text-zinc-500 rounded-md bg-zinc-800/80 px-2.5 py-1" aria-hidden="true">Sample</span>
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">
                   Job-specific summary highlighting your most relevant experience

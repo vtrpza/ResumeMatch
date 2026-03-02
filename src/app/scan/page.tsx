@@ -234,6 +234,7 @@ function ScanContent() {
           <div
             role="button"
             tabIndex={0}
+            aria-label="Upload resume PDF (required). Click or drop file here."
             onClick={() => fileInputRef.current?.click()}
             onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}

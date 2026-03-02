@@ -12,13 +12,13 @@ export default function NotFound() {
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <Link
           href="/"
-          className="focus-ring active:opacity-90 inline-block rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+          className="focus-ring active:opacity-90 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
         >
           Home
         </Link>
         <Link
           href="/scan"
-          className="focus-ring active:opacity-90 inline-block rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800"
+          className="focus-ring active:opacity-90 inline-flex min-h-[44px] items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800"
         >
           Scan resume
         </Link>

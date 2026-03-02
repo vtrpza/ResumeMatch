@@ -6,6 +6,7 @@ import { setScanStage, setScanContext, captureScanError } from "@/lib/sentry";
 import { extractTextFromPdf } from "@/lib/pdf";
 import { analyzeResume, type AnalysisResult } from "@/lib/analyze";
 import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
+import { getOrCreateAndIncrementScan } from "@/lib/db";
 
 interface ScanResult {
   ok: boolean;
@@ -67,8 +68,14 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
 
       setScanContext({ resumeSizeBytes: resume.size, jdLength: jd.length });
 
+      const sessionId = (formData.get("sessionId") as string | null)?.trim() || null;
+
       try {
-        return await runScanPipeline(resume, jd.trim());
+        const result = await runScanPipeline(resume, jd.trim());
+        if (result.ok && sessionId) {
+          await getOrCreateAndIncrementScan(sessionId);
+        }
+        return result;
       } catch (err) {
         captureScanError(err, { stage: "validation", code: "scan_pipeline_error" });
         return {

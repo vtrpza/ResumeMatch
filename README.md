@@ -173,6 +173,7 @@ npm run build     # Verify production build
 4. Configure Stripe webhook:
    - Point webhook URL to `https://your-app.vercel.app/api/webhooks/stripe`
    - Use the webhook secret in `STRIPE_WEBHOOK_SECRET`
+   - Set the webhook endpoint to API version `2026-02-25.clover` (or your account default) so events match the app.
 
 ## Current Status
 
