@@ -11,6 +11,7 @@ import {
   setPremium,
   getOrCreateSessionId,
 } from "@/lib/cookies";
+import { capture } from "@/lib/analytics";
 
 function ScanContent() {
   const router = useRouter();
@@ -18,6 +19,7 @@ function ScanContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState<boolean | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,15 +46,23 @@ function ScanContent() {
   async function handleSubmit(formData: FormData) {
     setError(null);
     setLoading(true);
+    capture("scan_started");
     try {
       const result = await runScan(formData);
       if (!result.ok) {
-        setError(result.error);
+        setError(result.error ?? "Something went wrong");
+        capture("scan_failed", { error: result.error });
         return;
       }
+      capture("scan_completed");
       setFreeScanUsed(); // fallback when DB unavailable
       sessionStorage.setItem("scan_analysis", JSON.stringify(result.analysis));
       router.push("/result");
+    } catch (err) {
+      capture("scan_failed", {
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -132,7 +142,16 @@ function ScanContent() {
             accept="application/pdf"
             required
             className="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:min-h-[44px] file:rounded file:border-0 file:bg-zinc-700 file:px-4 file:py-2.5 file:text-white"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              setSelectedFileName(file ? file.name : null);
+            }}
           />
+          {selectedFileName && (
+            <p className="mt-2 text-sm text-zinc-500">
+              Selected: {selectedFileName}
+            </p>
+          )}
         </div>
         <div>
           <label
@@ -159,9 +178,16 @@ function ScanContent() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 sm:w-auto"
+            className="w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
           >
-            {loading ? "Analyzing…" : "Run scan"}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent"></span>
+                Analyzing your resume…
+              </span>
+            ) : (
+              "Run scan"
+            )}
           </button>
         </div>
       </form>
